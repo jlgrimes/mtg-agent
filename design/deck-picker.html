@@ -6,38 +6,104 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Deck picker</title>
     <style>
-      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Geist+Mono:wght@400&display=swap");
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap");
       :root {
-        --bg:#0c0a09; --panel:#16130f; --muted-bg:#1c1917; --fg:#faf8f5; --muted:#a8a29e;
-        --border:#2a2420; --gold:#e0b44a; --gold-soft:#f5d98b;
-        --w:#f4ead0; --u:#5b9bd5; --b:#5b524c; --r:#d9543f; --g:#4fa86a; --sans:"Inter",system-ui,sans-serif;
+        --bg:#fafaf9; --card:#ffffff; --muted-bg:#f5f5f4; --fg:#1c1917; --muted:#78716c;
+        --border:#e7e5e4; --primary:#1c1917;
+        --w:#e3c75f; --u:#3b82f6; --b:#3f3f46; --r:#ef4444; --g:#22c55e;
+        --sans:"Inter",system-ui,sans-serif; --mono:"Geist Mono",monospace;
       }
       * { box-sizing:border-box; }
-      body { margin:0; background:var(--bg); color:var(--fg); font-family:var(--sans); padding:40px; }
-      .wrap { max-width:600px; margin:0 auto; display:grid; gap:16px; text-align:center; }
-      .label { font-family:"Geist Mono",monospace; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
-      .who { font-size:12.5px; color:var(--muted); }
-      .who b { color:var(--gold-soft); }
-      .chips { display:flex; flex-wrap:wrap; gap:9px; justify-content:center; }
-      .chip { display:flex; align-items:center; gap:8px; background:var(--muted-bg); border:1px solid var(--border); border-radius:999px; padding:8px 14px; font-size:13px; cursor:pointer; transition:.15s; }
-      .chip:hover { border-color:rgba(224,180,74,.4); }
-      .dots { display:flex; gap:3px; }
-      .dot { width:8px; height:8px; border-radius:999px; }
-      .tag { font-family:"Geist Mono",monospace; font-size:9.5px; color:var(--muted); border:1px solid var(--border); border-radius:5px; padding:0 5px; }
-      .connect { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border); border-radius:999px; padding:9px 18px; color:var(--muted); font-size:13.5px; cursor:pointer; margin:0 auto; }
+      body { margin:0; background:var(--bg); color:var(--fg); font-family:var(--sans); padding:36px; }
+      .wrap { max-width:760px; margin:0 auto; }
+      .head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:18px; }
+      .head h2 { font-size:18px; font-weight:600; letter-spacing:-0.01em; margin:0; }
+      .head .who { font-family:var(--mono); font-size:11px; color:var(--muted); }
+      .head .who b { color:var(--fg); font-weight:500; }
+      .grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; }
+      .deck {
+        position:relative; border-radius:14px; overflow:hidden; cursor:pointer;
+        border:1px solid var(--border); background:var(--card);
+        box-shadow:0 1px 2px rgba(0,0,0,.04); transition:transform .18s ease, box-shadow .18s ease;
+      }
+      .deck:hover { transform:translateY(-3px); box-shadow:0 12px 26px rgba(0,0,0,.12); }
+      .art { aspect-ratio:16/11; width:100%; object-fit:cover; display:block; }
+      .scrim {
+        position:absolute; inset:0; border-radius:14px;
+        background:linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.06) 58%, rgba(0,0,0,.72) 100%);
+      }
+      .info { position:absolute; left:0; right:0; bottom:0; padding:12px 13px; color:#fff; }
+      .name { font-size:14px; font-weight:600; line-height:1.25; text-shadow:0 1px 3px rgba(0,0,0,.5); }
+      .meta { display:flex; align-items:center; gap:8px; margin-top:7px; }
+      .pips { display:flex; gap:3px; }
+      .pip { width:9px; height:9px; border-radius:999px; box-shadow:0 0 0 1.5px rgba(255,255,255,.85), 0 1px 2px rgba(0,0,0,.4); }
+      .sub { font-family:var(--mono); font-size:10px; color:rgba(255,255,255,.88); letter-spacing:.02em; }
+      .badge { position:absolute; top:9px; right:9px; font-family:var(--mono); font-size:9.5px; font-weight:500; color:#fff; background:rgba(0,0,0,.45); backdrop-filter:blur(4px); border-radius:6px; padding:2px 7px; }
+      /* connect tile */
+      .connect {
+        display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+        aspect-ratio:16/11; border:1.5px dashed var(--border); border-radius:14px; color:var(--muted);
+        background:var(--muted-bg); cursor:pointer; text-align:center; padding:14px;
+      }
+      .connect:hover { border-color:#cfcbc7; color:var(--fg); }
+      .connect .ic { font-size:20px; }
+      .connect .t { font-size:12.5px; font-weight:500; }
+      .connect .s { font-size:10.5px; color:var(--muted); }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <div class="label">— or analyze one of your decks —</div>
-      <div class="who">Your decks · <b>jlgrimes</b></div>
-      <div class="chips">
-        <span class="chip"><span class="dots"><span class="dot" style="background:var(--r)"></span></span> Krenko Goblins <span class="tag">B3</span></span>
-        <span class="chip"><span class="dots"><span class="dot" style="background:var(--u)"></span><span class="dot" style="background:var(--r)"></span><span class="dot" style="background:var(--g)"></span></span> Miirym Dragons</span>
-        <span class="chip"><span class="dots"><span class="dot" style="background:var(--w)"></span><span class="dot" style="background:var(--u)"></span><span class="dot" style="background:var(--b)"></span><span class="dot" style="background:var(--g)"></span></span> Atraxa Superfriends <span class="tag">private</span></span>
-        <span class="chip"><span class="dots"><span class="dot" style="background:var(--b)"></span><span class="dot" style="background:var(--g)"></span></span> Golgari Midrange</span>
+      <div class="head">
+        <h2>Your decks</h2>
+        <span class="who">Archidekt · <b>jlgrimes</b></span>
       </div>
-      <div style="margin-top:8px"><span class="connect">🔗 Connect Archidekt to load your decks</span></div>
+      <div class="grid">
+        <div class="deck">
+          <img class="art" alt="Krenko" src="https://cards.scryfall.io/art_crop/front/8/2/824b2d73-2151-4e5e-9f05-8f63e2bdcaa9.jpg?1730632010" />
+          <div class="scrim"></div>
+          <span class="badge">B3 · 100</span>
+          <div class="info">
+            <div class="name">Krenko Goblin Swarm</div>
+            <div class="meta"><span class="pips"><span class="pip" style="background:var(--r)"></span></span><span class="sub">Mono-Red · aggro</span></div>
+          </div>
+        </div>
+
+        <div class="deck">
+          <img class="art" alt="Miirym" src="https://cards.scryfall.io/art_crop/front/a/9/a934590b-5c70-4f07-af67-fbe817a99531.jpg?1674137589" />
+          <div class="scrim"></div>
+          <span class="badge">B4 · 100</span>
+          <div class="info">
+            <div class="name">Miirym Dragon Tribal</div>
+            <div class="meta"><span class="pips"><span class="pip" style="background:var(--u)"></span><span class="pip" style="background:var(--r)"></span><span class="pip" style="background:var(--g)"></span></span><span class="sub">Temur</span></div>
+          </div>
+        </div>
+
+        <div class="deck">
+          <img class="art" alt="Atraxa" src="https://cards.scryfall.io/art_crop/front/d/0/d0d33d52-3d28-4635-b985-51e126289259.jpg?1599707796" />
+          <div class="scrim"></div>
+          <span class="badge">private</span>
+          <div class="info">
+            <div class="name">Atraxa Superfriends</div>
+            <div class="meta"><span class="pips"><span class="pip" style="background:var(--w)"></span><span class="pip" style="background:var(--u)"></span><span class="pip" style="background:var(--b)"></span><span class="pip" style="background:var(--g)"></span></span><span class="sub">Planeswalkers</span></div>
+          </div>
+        </div>
+
+        <div class="deck">
+          <img class="art" alt="Meren" src="https://cards.scryfall.io/art_crop/front/5/0/508b1442-bf2c-4ad6-9bcf-bd894e081ab6.jpg?1743207181" />
+          <div class="scrim"></div>
+          <span class="badge">B3 · 100</span>
+          <div class="info">
+            <div class="name">Meren Graveyard Value</div>
+            <div class="meta"><span class="pips"><span class="pip" style="background:var(--b)"></span><span class="pip" style="background:var(--g)"></span></span><span class="sub">Golgari · midrange</span></div>
+          </div>
+        </div>
+
+        <div class="connect">
+          <span class="ic">＋</span>
+          <span class="t">Connect Archidekt</span>
+          <span class="s">Load all your decks</span>
+        </div>
+      </div>
     </div>
   </body>
 </html>
