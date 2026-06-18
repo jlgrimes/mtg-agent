@@ -12,7 +12,7 @@ function clerkAuth(): AuthFn<Request> {
     if (!token) return null;
 
     const secretKey = process.env.CLERK_SECRET_KEY;
-    if (!secretKey) return null; // not configured yet -> skip (fails closed downstream)
+    if (!secretKey) return null; // not configured -> skip (request gets 401)
 
     // Optional but recommended: restrict to your own origins (azp check).
     const authorizedParties = process.env.CLERK_AUTHORIZED_PARTIES
@@ -20,9 +20,16 @@ function clerkAuth(): AuthFn<Request> {
       : undefined;
 
     try {
-      const result = await verifyToken(token, { secretKey, authorizedParties });
+      // @clerk/backend 3.x returns the JWT payload directly (and throws on
+      // invalid tokens); newer versions return { data, errors }. Handle both.
+      const result = (await verifyToken(token, { secretKey, authorizedParties })) as {
+        sub?: string;
+        email?: unknown;
+        data?: { sub?: string; email?: unknown };
+        errors?: unknown;
+      };
       if (result.errors) return null;
-      const claims = result.data as { sub?: string; email?: unknown } | undefined;
+      const claims = (result.data ?? result) as { sub?: string; email?: unknown };
       if (!claims?.sub) return null;
       const attributes: Record<string, string> = {};
       if (typeof claims.email === "string") attributes.email = claims.email;
@@ -33,7 +40,7 @@ function clerkAuth(): AuthFn<Request> {
         attributes,
       };
     } catch {
-      return null; // network/verify failure -> skip; request gets 401
+      return null; // invalid token / network failure -> request gets 401
     }
   };
 }
