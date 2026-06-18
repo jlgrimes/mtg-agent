@@ -60,9 +60,17 @@ export async function createChat(
     updatedAt: now,
   };
   const r = redis();
+  // Write metadata + index first so the chat always exists/lists, then store
+  // messages best-effort (a messages failure must not lose the chat).
   await r.set(metaKey(record.id), record);
-  if (data.messages) await r.set(msgsKey(record.id), data.messages);
   await r.zadd(userIndexKey(userId), { score: now, member: record.id });
+  if (data.messages) {
+    try {
+      await r.set(msgsKey(record.id), data.messages);
+    } catch (e) {
+      console.error("createChat: failed to store messages", e);
+    }
+  }
   return record;
 }
 

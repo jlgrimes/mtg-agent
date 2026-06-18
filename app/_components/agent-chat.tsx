@@ -98,31 +98,37 @@ function SignedInApp() {
   );
 
   // Called by ChatView after each settled turn with the latest cursor + messages.
+  // Wrapped so a save failure can never bubble up and break the chat UI.
   const handlePersist = useCallback(
     async ({ session, title, messages }: PersistPayload) => {
-      if (chatIdRef.current) {
-        await fetch(`/api/chats/${chatIdRef.current}`, {
-          method: "PATCH",
+      try {
+        if (chatIdRef.current) {
+          await fetch(`/api/chats/${chatIdRef.current}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...session, messages }),
+          });
+          void loadChats();
+          return;
+        }
+        if (creatingRef.current) return; // a create is already in flight
+        creatingRef.current = true;
+        const res = await fetch("/api/chats", {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...session, messages }),
+          body: JSON.stringify({ title, ...session, messages }),
         });
-        void loadChats();
-        return;
-      }
-      if (creatingRef.current) return; // a create is already in flight
-      creatingRef.current = true;
-      const res = await fetch("/api/chats", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, ...session, messages }),
-      });
-      if (res.ok) {
-        const { chat } = await res.json();
-        chatIdRef.current = chat.id;
-        setCurrentChatId(chat.id);
-        void loadChats();
-      } else {
+        if (res.ok) {
+          const { chat } = await res.json();
+          chatIdRef.current = chat.id;
+          setCurrentChatId(chat.id);
+          void loadChats();
+        } else {
+          creatingRef.current = false;
+        }
+      } catch (e) {
         creatingRef.current = false;
+        console.error("Failed to persist chat:", e);
       }
     },
     [loadChats],

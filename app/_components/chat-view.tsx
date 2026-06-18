@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AgentMessage } from "./agent-message";
 import { DeckPicker, type PickedDeck } from "./deck-picker";
+import { ErrorBoundary } from "./error-boundary";
 
 export const AGENT_NAME = "Commander Copilot";
 export const AGENT_TAGLINE = "Your MTG Commander deckbuilding sidekick";
@@ -96,8 +97,11 @@ export function ChatView({
   const isBusy = agent.status === "submitted" || agent.status === "streaming";
 
   // Full conversation = stored history (loaded instantly from Redis) + any new
-  // turns produced by the live hook this session.
-  const allMessages: EveMessage[] = [...(initialMessages ?? []), ...agent.data.messages];
+  // turns produced by the live hook this session. Defensively drop anything that
+  // doesn't have a parts array so a malformed stored message can't crash render.
+  const allMessages: EveMessage[] = [...(initialMessages ?? []), ...agent.data.messages].filter(
+    (m): m is EveMessage => !!m && Array.isArray((m as { parts?: unknown }).parts),
+  );
   const isEmpty = allMessages.length === 0;
 
   // Persist the chat each time a turn completes (status returns to "ready").
@@ -164,20 +168,28 @@ export function ChatView({
       ) : null}
 
       {isEmpty ? null : (
-        <Conversation className="min-h-0 flex-1">
-          <ConversationContent className="mx-auto w-full max-w-3xl gap-6 px-4 py-6 sm:px-6">
-            {allMessages.map((message, index) => (
-              <AgentMessage
-                canRespond={!isBusy}
-                isStreaming={agent.status === "streaming" && index === allMessages.length - 1}
-                key={message.id}
-                message={message}
-                onInputResponses={(inputResponses) => agent.send({ inputResponses })}
-              />
-            ))}
-          </ConversationContent>
-          <ConversationScrollButton />
-        </Conversation>
+        <ErrorBoundary
+          fallback={
+            <div className="mx-auto w-full max-w-3xl px-4 py-6 text-muted-foreground text-sm sm:px-6">
+              Couldn’t render this conversation. Start a new chat to keep going.
+            </div>
+          }
+        >
+          <Conversation className="min-h-0 flex-1">
+            <ConversationContent className="mx-auto w-full max-w-3xl gap-6 px-4 py-6 sm:px-6">
+              {allMessages.map((message, index) => (
+                <AgentMessage
+                  canRespond={!isBusy}
+                  isStreaming={agent.status === "streaming" && index === allMessages.length - 1}
+                  key={message.id}
+                  message={message}
+                  onInputResponses={(inputResponses) => agent.send({ inputResponses })}
+                />
+              ))}
+            </ConversationContent>
+            <ConversationScrollButton />
+          </Conversation>
+        </ErrorBoundary>
       )}
 
       <div
