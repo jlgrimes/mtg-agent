@@ -3,6 +3,7 @@
 import { Show, SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 import { useEveAgent } from "eve/react";
 import { AlertCircleIcon } from "lucide-react";
+import { DeckSidebar } from "./deck-sidebar";
 import {
   Conversation,
   ConversationContent,
@@ -46,6 +47,20 @@ export function AgentChat() {
     if (!text || isBusy) return;
 
     await agent.send({ message: text });
+  };
+
+  const handlePickDeck = (deck: {
+    name: string;
+    decklistText: string;
+    commanders: string[];
+  }) => {
+    if (isBusy || !deck.decklistText) return;
+    const cmdr = deck.commanders.length ? ` My commander is ${deck.commanders.join(" & ")}.` : "";
+    void agent.send({
+      message:
+        `Here's my Archidekt deck "${deck.name}".${cmdr} Please analyze it — mana curve, ` +
+        `land count, and a quick assessment with any upgrade ideas:\n\n${deck.decklistText}`,
+    });
   };
 
   const composer = (
@@ -153,10 +168,15 @@ export function AgentChat() {
         <SignInLanding />
       </Show>
       <Show when="signed-in">
-        <div className="fixed top-3 right-4 z-10">
-          <UserButton />
+        <div className="flex h-dvh">
+          <DeckSidebar busy={isBusy} onPickDeck={handlePickDeck} />
+          <div className="relative min-w-0 flex-1">
+            <div className="absolute top-3 right-4 z-10">
+              <UserButton />
+            </div>
+            {chat}
+          </div>
         </div>
-        {chat}
       </Show>
     </>
   );
