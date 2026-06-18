@@ -2,6 +2,7 @@
 
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import type { EveMessage } from "eve/react";
+import { Menu } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AGENT_NAME,
@@ -35,6 +36,7 @@ function SignedInApp() {
   );
   const [opening, setOpening] = useState(false);
   const [viewKey, setViewKey] = useState("new-0");
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
 
   // chatIdRef is the source of truth for persistence (create vs. update) and
   // avoids stale closures inside the ChatView onPersist callback.
@@ -134,17 +136,57 @@ function SignedInApp() {
     [loadChats],
   );
 
+  // Closing the drawer on navigate keeps mobile flow tidy.
+  const openAndClose = (id: string) => {
+    setSidebarOpen(false);
+    void openChat(id);
+  };
+  const newAndClose = () => {
+    setSidebarOpen(false);
+    startNewChat();
+  };
+
+  const listProps = {
+    chats,
+    currentChatId,
+    loading: loadingChats,
+    onDelete: deleteChat,
+    onNew: newAndClose,
+    onOpen: openAndClose,
+  };
+
   return (
     <div className="flex h-dvh">
-      <ChatList
-        chats={chats}
-        currentChatId={currentChatId}
-        loading={loadingChats}
-        onDelete={deleteChat}
-        onNew={startNewChat}
-        onOpen={openChat}
-      />
+      {/* Desktop: static rail */}
+      <div className="hidden w-64 shrink-0 border-border border-r md:block">
+        <ChatList {...listProps} />
+      </div>
+
+      {/* Mobile: slide-in drawer */}
+      {sidebarOpen ? (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <button
+            aria-label="Close menu"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setSidebarOpen(false)}
+            type="button"
+          />
+          <div className="absolute inset-y-0 left-0 w-72 border-border border-r bg-background shadow-xl">
+            <ChatList {...listProps} onClose={() => setSidebarOpen(false)} />
+          </div>
+        </div>
+      ) : null}
+
       <div className="relative min-w-0 flex-1">
+        {/* Mobile: hamburger to open the chat drawer */}
+        <button
+          aria-label="Open menu"
+          className="absolute top-3 left-3 z-10 rounded-md p-2 text-foreground hover:bg-muted md:hidden"
+          onClick={() => setSidebarOpen(true)}
+          type="button"
+        >
+          <Menu className="size-5" />
+        </button>
         <div className="absolute top-3 right-4 z-10">
           <UserButton />
         </div>
@@ -168,7 +210,7 @@ function SignInLanding() {
   return (
     <main className="flex h-dvh flex-col items-center justify-center gap-6 bg-background px-6 text-center text-foreground">
       <div className="flex flex-col items-center gap-2">
-        <h1 className="font-medium text-5xl tracking-tighter">{AGENT_NAME}</h1>
+        <h1 className="font-medium text-4xl tracking-tighter sm:text-5xl">{AGENT_NAME}</h1>
         <p className="text-muted-foreground text-sm">{AGENT_TAGLINE}</p>
       </div>
       <p className="max-w-sm text-muted-foreground text-sm">

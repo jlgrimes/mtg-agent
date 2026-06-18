@@ -214,7 +214,7 @@ export function ChatView({
       >
         {isEmpty ? (
           <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="font-medium text-5xl tracking-tighter">{AGENT_NAME}</h1>
+            <h1 className="font-medium text-4xl tracking-tighter sm:text-5xl">{AGENT_NAME}</h1>
             <p className="text-muted-foreground text-sm">{AGENT_TAGLINE}</p>
           </div>
         ) : null}
