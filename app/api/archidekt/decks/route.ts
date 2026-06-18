@@ -10,6 +10,7 @@ interface DeckSummary {
   updatedAt: string;
   private: boolean;
   unlisted: boolean;
+  featured: string | null;
 }
 
 // GET -> the signed-in user's Commander decks (public + private), newest first.
@@ -40,6 +41,8 @@ export async function GET() {
     updatedAt: (d.updatedAt as string) ?? "",
     private: Boolean(d.private),
     unlisted: Boolean(d.unlisted),
+    // Archidekt's deck list ships a ready art-crop cover URL; use it as the deck card image.
+    featured: typeof d.featured === "string" && d.featured ? (d.featured as string) : null,
   }));
 
   return NextResponse.json({ decks, total: data.count ?? decks.length });

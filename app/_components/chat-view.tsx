@@ -74,8 +74,20 @@ export function ChatView({
 }) {
   const { getToken } = useAuth();
   const [activeDeck, setActiveDeck] = useState<PickedDeck | null>(null);
+  const [showPaste, setShowPaste] = useState(false);
+  const [pasteText, setPasteText] = useState("");
   const activeDeckRef = useRef<PickedDeck | null>(null);
   activeDeckRef.current = activeDeck;
+
+  // Paste path (for Moxfield/MTGGoldfish/text decks Archidekt can't reach):
+  // set the pasted list as the active deck so the user can just ask about it.
+  const usePastedDeck = () => {
+    const text = pasteText.trim();
+    if (!text) return;
+    setActiveDeck({ name: "Pasted decklist", decklistText: text, commanders: [] });
+    setShowPaste(false);
+    setPasteText("");
+  };
 
   const agent = useEveAgent({
     initialSession,
@@ -196,7 +208,7 @@ export function ChatView({
         className={cn(
           "mx-auto w-full px-4 sm:px-6",
           isEmpty
-            ? "flex max-w-xl flex-1 flex-col items-center justify-center gap-6 pb-[8vh]"
+            ? "flex max-w-2xl flex-1 flex-col items-center justify-center gap-6 pb-[8vh]"
             : "max-w-3xl shrink-0 pb-6",
         )}
       >
@@ -207,7 +219,7 @@ export function ChatView({
           </div>
         ) : null}
 
-        <div className="w-full">
+        <div className={cn("w-full", isEmpty && "mx-auto max-w-xl")}>
           {activeDeck ? (
             <div className="mb-2 flex w-full items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
               <span aria-hidden>📋</span>
@@ -248,9 +260,45 @@ export function ChatView({
               ))}
             </div>
             {activeDeck ? null : (
-              <div className="flex w-full flex-col items-center gap-2 pt-2">
-                <span className="text-muted-foreground text-xs">— or analyze one of your decks —</span>
+              <div className="flex w-full flex-col items-center gap-3 pt-2">
+                <span className="text-muted-foreground text-xs">— or load a deck to analyze —</span>
                 <DeckPicker onSelect={setActiveDeck} />
+                {showPaste ? (
+                  <div className="flex w-full max-w-md flex-col gap-2">
+                    <textarea
+                      autoFocus
+                      className="h-32 w-full resize-none rounded-lg border border-border bg-background p-3 text-sm outline-none focus:border-foreground/40"
+                      onChange={(e) => setPasteText(e.target.value)}
+                      placeholder={"Paste a decklist from Moxfield, Archidekt, MTGGoldfish…\n1 Sol Ring\n1 Arcane Signet\n…"}
+                      value={pasteText}
+                    />
+                    <div className="flex justify-center gap-2">
+                      <button
+                        className="rounded-md bg-foreground px-4 py-1.5 font-medium text-background text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+                        disabled={!pasteText.trim()}
+                        onClick={usePastedDeck}
+                        type="button"
+                      >
+                        Use this deck
+                      </button>
+                      <button
+                        className="px-3 py-1.5 text-muted-foreground text-sm hover:text-foreground"
+                        onClick={() => setShowPaste(false)}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    className="text-muted-foreground text-xs underline-offset-2 hover:text-foreground hover:underline"
+                    onClick={() => setShowPaste(true)}
+                    type="button"
+                  >
+                    📋 or paste a decklist (Moxfield, etc.)
+                  </button>
+                )}
               </div>
             )}
           </>

@@ -10,6 +10,7 @@ interface DeckSummary {
   bracket: number | null;
   private: boolean;
   unlisted: boolean;
+  featured: string | null;
 }
 
 export interface PickedDeck {
@@ -21,10 +22,24 @@ export interface PickedDeck {
 const COLOR_DOT: Record<string, string> = {
   W: "bg-amber-200",
   U: "bg-blue-400",
-  B: "bg-neutral-600",
+  B: "bg-neutral-700",
   R: "bg-red-500",
   G: "bg-green-500",
 };
+
+// Soft gradient fallback (keyed off color identity) when a deck has no cover art.
+const COLOR_HEX: Record<string, string> = {
+  W: "#e3c75f",
+  U: "#3b82f6",
+  B: "#3f3f46",
+  R: "#ef4444",
+  G: "#22c55e",
+};
+function fallbackGradient(colors: string[]): string {
+  const hex = (colors.length ? colors : ["B"]).map((c) => COLOR_HEX[c] ?? "#71717a");
+  const stops = hex.length === 1 ? [hex[0], "#27272a"] : hex;
+  return `linear-gradient(135deg, ${stops.join(", ")})`;
+}
 
 // Home-screen Archidekt deck picker: connect once, then click a deck to make it
 // the active context for the chat. Lives on the empty/home view, not the sidebar.
@@ -180,9 +195,9 @@ export function DeckPicker({ onSelect }: { readonly onSelect: (deck: PickedDeck)
     );
   }
 
-  // --- Connected: pick a deck ---
+  // --- Connected: pick a deck (cover-art gallery) ---
   return (
-    <div className="flex w-full flex-col items-center gap-2">
+    <div className="flex w-full flex-col items-center gap-3">
       <div className="flex items-center gap-2 text-muted-foreground text-xs">
         <span>
           Your decks · <span className="text-foreground">{username}</span>
@@ -199,25 +214,56 @@ export function DeckPicker({ onSelect }: { readonly onSelect: (deck: PickedDeck)
       ) : decks.length === 0 ? (
         <p className="text-muted-foreground text-xs">No Commander decks found.</p>
       ) : (
-        <div className="flex max-h-40 w-full max-w-xl flex-wrap justify-center gap-2 overflow-y-auto">
+        <div className="grid max-h-[19rem] w-full grid-cols-2 gap-3 overflow-y-auto p-0.5 sm:grid-cols-3">
           {decks.map((deck) => (
             <button
-              className="flex items-center gap-2 rounded-full border border-border bg-muted/30 px-3 py-1.5 text-sm transition-colors hover:bg-muted disabled:opacity-50"
+              className="group relative aspect-[16/11] overflow-hidden rounded-xl border border-border bg-muted shadow-sm transition-transform hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60"
               disabled={pickingId !== null}
               key={deck.id}
               onClick={() => handlePick(deck)}
               type="button"
             >
-              <span className="flex gap-0.5">
-                {(deck.colors.length ? deck.colors : ["C"]).map((c, i) => (
-                  <span
-                    className={`size-2 rounded-full ${COLOR_DOT[c] ?? "bg-neutral-400"}`}
-                    key={`${c}-${i}`}
-                  />
-                ))}
+              {deck.featured ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  alt=""
+                  className="absolute inset-0 size-full object-cover"
+                  loading="lazy"
+                  src={deck.featured}
+                />
+              ) : (
+                <span
+                  className="absolute inset-0"
+                  style={{ background: fallbackGradient(deck.colors) }}
+                />
+              )}
+              <span className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+              {deck.bracket || deck.private || deck.unlisted ? (
+                <span className="absolute top-1.5 right-1.5 rounded-md bg-black/45 px-1.5 py-0.5 font-medium text-[10px] text-white/90 backdrop-blur-sm">
+                  {deck.private ? "private" : deck.unlisted ? "unlisted" : `B${deck.bracket}`}
+                </span>
+              ) : null}
+              <span className="absolute inset-x-0 bottom-0 flex flex-col gap-1 p-2 text-left">
+                <span className="line-clamp-2 font-semibold text-[13px] text-white leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">
+                  {deck.name}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="flex gap-0.5">
+                    {(deck.colors.length ? deck.colors : ["C"]).map((c, i) => (
+                      <span
+                        className={`size-2 rounded-full ring-1 ring-white/80 ${COLOR_DOT[c] ?? "bg-neutral-400"}`}
+                        key={`${c}-${i}`}
+                      />
+                    ))}
+                  </span>
+                  <span className="font-mono text-[9px] text-white/80">{deck.size} cards</span>
+                </span>
               </span>
-              <span className="max-w-[14rem] truncate">{deck.name}</span>
-              {pickingId === deck.id ? <span className="text-muted-foreground">…</span> : null}
+              {pickingId === deck.id ? (
+                <span className="absolute inset-0 grid place-items-center bg-black/40 text-white text-xs">
+                  Loading…
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
