@@ -17,11 +17,12 @@ export async function GET() {
   const conn = await getStoredConn();
   if (!conn) return NextResponse.json({ error: "Archidekt not connected." }, { status: 401 });
 
-  // deckFormat=3 is Commander/EDH on Archidekt. owner=<id> with the user's token
-  // includes their private and unlisted decks.
+  // deckFormat=3 is Commander/EDH on Archidekt. NOTE: the `owner=<id>` param does
+  // NOT actually filter (it returns everyone's decks); `ownerUsername` does. With
+  // the user's own token this also surfaces their private/unlisted decks.
   const res = await archidektGet(
     conn,
-    `/decks/v3/?owner=${conn.userId}&deckFormat=3&orderBy=-updatedAt&pageSize=50`,
+    `/decks/v3/?ownerUsername=${encodeURIComponent(conn.username)}&deckFormat=3&orderBy=-updatedAt&pageSize=50`,
   );
   if (!res.ok) {
     return NextResponse.json(
