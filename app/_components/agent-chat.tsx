@@ -1,16 +1,16 @@
 "use client";
 
-import { Show, SignInButton, UserButton } from "@clerk/nextjs";
-import type { EveMessage } from "eve/react";
+import { Show, SignInButton, useAuth, UserButton } from "@clerk/nextjs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AGENT_NAME,
   AGENT_TAGLINE,
   type ChatCursor,
   ChatView,
-  type PersistPayload,
+  type EveInitialEvents,
 } from "./chat-view";
 import { ChatList, type ChatSummary } from "./chat-list";
+import { fetchSessionEvents } from "./replay";
 
 export function AgentChat() {
   return (
@@ -26,13 +26,12 @@ export function AgentChat() {
 }
 
 function SignedInApp() {
+  const { getToken } = useAuth();
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [loadingChats, setLoadingChats] = useState(true);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [initialSession, setInitialSession] = useState<ChatCursor | undefined>(undefined);
-  const [initialMessages, setInitialMessages] = useState<readonly EveMessage[] | undefined>(
-    undefined,
-  );
+  const [initialEvents, setInitialEvents] = useState<EveInitialEvents>(undefined);
   const [opening, setOpening] = useState(false);
   const [viewKey, setViewKey] = useState("new-0");
 
@@ -62,31 +61,36 @@ function SignedInApp() {
     nonceRef.current += 1;
     setCurrentChatId(null);
     setInitialSession(undefined);
-    setInitialMessages(undefined);
+    setInitialEvents(undefined);
     setViewKey(`new-${nonceRef.current}`);
   }, []);
 
-  const openChat = useCallback(async (id: string) => {
-    setOpening(true);
-    try {
-      const res = await fetch(`/api/chats/${id}`);
-      if (!res.ok) return;
-      // Messages come straight from Redis — instant, no session replay.
-      const { chat, messages } = await res.json();
-      chatIdRef.current = id;
-      creatingRef.current = false;
-      setCurrentChatId(id);
-      setInitialSession({
-        sessionId: chat.sessionId,
-        continuationToken: chat.continuationToken,
-        streamIndex: chat.streamIndex ?? 0,
-      });
-      setInitialMessages((messages ?? []) as EveMessage[]);
-      setViewKey(`open-${id}-${nonceRef.current++}`);
-    } finally {
-      setOpening(false);
-    }
-  }, []);
+  const openChat = useCallback(
+    async (id: string) => {
+      setOpening(true);
+      try {
+        const res = await fetch(`/api/chats/${id}`);
+        if (!res.ok) return;
+        const { chat } = await res.json();
+        // Replay the recorded stream so the chat reopens with its full history.
+        const token = await getToken();
+        const events = token ? await fetchSessionEvents(chat.sessionId, token) : [];
+        chatIdRef.current = id;
+        creatingRef.current = false;
+        setCurrentChatId(id);
+        setInitialSession({
+          sessionId: chat.sessionId,
+          continuationToken: chat.continuationToken,
+          streamIndex: 0,
+        });
+        setInitialEvents(events as EveInitialEvents);
+        setViewKey(`open-${id}-${nonceRef.current++}`);
+      } finally {
+        setOpening(false);
+      }
+    },
+    [getToken],
+  );
 
   const deleteChat = useCallback(
     async (id: string) => {
@@ -97,14 +101,14 @@ function SignedInApp() {
     [startNewChat],
   );
 
-  // Called by ChatView after each settled turn with the latest cursor + messages.
+  // Called by ChatView after each settled turn with the latest session cursor.
   const handlePersist = useCallback(
-    async ({ session, title, messages }: PersistPayload) => {
+    async ({ session, title }: { session: ChatCursor; title: string }) => {
       if (chatIdRef.current) {
         await fetch(`/api/chats/${chatIdRef.current}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...session, messages }),
+          body: JSON.stringify(session),
         });
         void loadChats();
         return;
@@ -114,7 +118,7 @@ function SignedInApp() {
       const res = await fetch("/api/chats", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, ...session, messages }),
+        body: JSON.stringify({ title, ...session }),
       });
       if (res.ok) {
         const { chat } = await res.json();
@@ -148,7 +152,7 @@ function SignedInApp() {
           </div>
         ) : null}
         <ChatView
-          initialMessages={initialMessages}
+          initialEvents={initialEvents}
           initialSession={initialSession}
           key={viewKey}
           onPersist={handlePersist}

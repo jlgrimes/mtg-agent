@@ -32,7 +32,6 @@ export async function POST(req: Request) {
       sessionId: String(body.sessionId),
       continuationToken: String(body.continuationToken ?? ""),
       streamIndex: typeof body.streamIndex === "number" ? body.streamIndex : undefined,
-      messages: Array.isArray(body.messages) ? body.messages : undefined,
     });
     return NextResponse.json({ chat });
   } catch (e) {

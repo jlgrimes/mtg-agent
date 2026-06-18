@@ -1,17 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { deleteChat, getChat, getChatMessages, updateChat } from "@/lib/chats";
+import { deleteChat, getChat, updateChat } from "@/lib/chats";
 
-// GET -> one chat's record (cursor to continue) plus its stored messages so the
-// UI can render the conversation instantly without replaying eve's session.
+// GET -> one chat's record (incl. the session cursor to resume it).
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   const { id } = await ctx.params;
   const chat = await getChat(userId, id);
   if (!chat) return NextResponse.json({ error: "Not found." }, { status: 404 });
-  const messages = await getChatMessages(userId, id);
-  return NextResponse.json({ chat, messages });
+  return NextResponse.json({ chat });
 }
 
 // PATCH { title?, sessionId?, continuationToken?, streamIndex? } -> update a chat.
@@ -26,7 +24,6 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     continuationToken:
       typeof body.continuationToken === "string" ? body.continuationToken : undefined,
     streamIndex: typeof body.streamIndex === "number" ? body.streamIndex : undefined,
-    messages: Array.isArray(body.messages) ? body.messages : undefined,
   });
   if (!chat) return NextResponse.json({ error: "Not found." }, { status: 404 });
   return NextResponse.json({ chat });
