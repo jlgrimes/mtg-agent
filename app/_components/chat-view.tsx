@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
-import { useEveAgent } from "eve/react";
+import { type EveMessage, useEveAgent } from "eve/react";
 import { AlertCircleIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -41,8 +41,11 @@ export interface ChatCursor {
   streamIndex: number;
 }
 
-// The exact event type eve's hook expects to seed prior history.
-export type EveInitialEvents = NonNullable<Parameters<typeof useEveAgent>[0]>["initialEvents"];
+export interface PersistPayload {
+  session: ChatCursor;
+  title: string;
+  messages: unknown[];
+}
 
 interface UiMessage {
   role: string;
@@ -61,12 +64,12 @@ function messageText(message: { parts: { type: string; text?: string }[] }): str
 
 export function ChatView({
   initialSession,
-  initialEvents,
+  initialMessages,
   onPersist,
 }: {
   readonly initialSession?: ChatCursor;
-  readonly initialEvents?: EveInitialEvents;
-  readonly onPersist: (data: { session: ChatCursor; title: string }) => void;
+  readonly initialMessages?: readonly EveMessage[];
+  readonly onPersist: (data: PersistPayload) => void;
 }) {
   const { getToken } = useAuth();
   const [activeDeck, setActiveDeck] = useState<PickedDeck | null>(null);
@@ -75,7 +78,6 @@ export function ChatView({
 
   const agent = useEveAgent({
     initialSession,
-    initialEvents,
     auth: { bearer: async () => (await getToken()) ?? "" },
     prepareSend: (input) => {
       const deck = activeDeckRef.current;
@@ -92,17 +94,21 @@ export function ChatView({
   });
 
   const isBusy = agent.status === "submitted" || agent.status === "streaming";
-  const isEmpty = agent.data.messages.length === 0;
+
+  // Full conversation = stored history (loaded instantly from Redis) + any new
+  // turns produced by the live hook this session.
+  const allMessages: EveMessage[] = [...(initialMessages ?? []), ...agent.data.messages];
+  const isEmpty = allMessages.length === 0;
 
   // Persist the chat each time a turn completes (status returns to "ready").
-  // We read the live session cursor + messages from refs so the effect always
-  // sees current values without re-subscribing on every streamed delta.
+  // Refs keep the effect reading current values without re-subscribing on every
+  // streamed delta.
   const onPersistRef = useRef(onPersist);
   onPersistRef.current = onPersist;
   const sessionRef = useRef(agent.session);
   sessionRef.current = agent.session;
-  const messagesRef = useRef(agent.data.messages);
-  messagesRef.current = agent.data.messages;
+  const allMessagesRef = useRef(allMessages);
+  allMessagesRef.current = allMessages;
   const prevStatusRef = useRef(agent.status);
   useEffect(() => {
     const prev = prevStatusRef.current;
@@ -110,8 +116,8 @@ export function ChatView({
     if (agent.status !== "ready" || (prev !== "streaming" && prev !== "submitted")) return;
     const s = sessionRef.current;
     if (!s?.sessionId) return;
-    const messages = messagesRef.current as unknown as UiMessage[];
-    const firstUser = messages.find((m) => m.role === "user");
+    const messages = allMessagesRef.current;
+    const firstUser = (messages as unknown as UiMessage[]).find((m) => m.role === "user");
     const title = (firstUser ? messageText(firstUser).slice(0, 80) : "") || "New chat";
     onPersistRef.current({
       session: {
@@ -120,6 +126,7 @@ export function ChatView({
         streamIndex: s.streamIndex,
       },
       title,
+      messages: messages as unknown[],
     });
   }, [agent.status]);
 
@@ -159,10 +166,10 @@ export function ChatView({
       {isEmpty ? null : (
         <Conversation className="min-h-0 flex-1">
           <ConversationContent className="mx-auto w-full max-w-3xl gap-6 px-4 py-6 sm:px-6">
-            {agent.data.messages.map((message, index) => (
+            {allMessages.map((message, index) => (
               <AgentMessage
                 canRespond={!isBusy}
-                isStreaming={agent.status === "streaming" && index === agent.data.messages.length - 1}
+                isStreaming={agent.status === "streaming" && index === allMessages.length - 1}
                 key={message.id}
                 message={message}
                 onInputResponses={(inputResponses) => agent.send({ inputResponses })}
