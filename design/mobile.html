@@ -1,0 +1,94 @@
+<!-- @dsCard group="Screens" -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mobile layout</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400&display=swap");
+      :root {
+        --bg:#fafaf9; --card:#ffffff; --muted-bg:#f5f5f4; --fg:#1c1917; --muted:#78716c;
+        --border:#e7e5e4; --primary:#1c1917; --r:#ef4444; --u:#3b82f6; --g:#22c55e;
+        --sans:"Inter",system-ui,sans-serif; --mono:"Geist Mono",monospace;
+      }
+      * { box-sizing:border-box; }
+      body { margin:0; background:#e9e7e4; font-family:var(--sans); color:var(--fg); padding:30px; display:flex; gap:28px; justify-content:center; align-items:flex-start; }
+      .phone { width:300px; height:600px; background:var(--bg); border-radius:30px; border:8px solid #1c1917; overflow:hidden; position:relative; box-shadow:0 20px 50px rgba(0,0,0,.25); }
+      .bar { height:48px; display:flex; align-items:center; gap:10px; padding:0 14px; border-bottom:1px solid var(--border); background:var(--card); }
+      .ham { display:grid; gap:3px; cursor:pointer; }
+      .ham span { width:17px; height:2px; background:var(--fg); border-radius:2px; }
+      .title { font-weight:600; font-size:14px; }
+      .title span { color:var(--muted); font-weight:400; }
+      .avatar { margin-left:auto; width:26px; height:26px; border-radius:999px; background:var(--muted-bg); border:1px solid var(--border); }
+      .body { padding:22px 16px; display:flex; flex-direction:column; align-items:center; height:calc(100% - 48px); }
+      .hero { font-size:22px; font-weight:700; letter-spacing:-0.02em; margin-top:48px; }
+      .tag { color:var(--muted); font-size:12px; margin:5px 0 18px; text-align:center; }
+      .composer { width:100%; display:flex; gap:8px; align-items:center; background:var(--card); border:1px solid var(--border); border-radius:13px; padding:6px 6px 6px 14px; box-shadow:0 4px 14px rgba(0,0,0,.05); }
+      .composer input { flex:1; border:0; outline:0; background:transparent; font-size:13px; }
+      .composer input::placeholder { color:var(--muted); }
+      .send { width:32px; height:32px; border-radius:9px; border:0; background:var(--primary); color:#fff; }
+      .or { font-family:var(--mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:18px 0 10px; }
+      .decks { display:grid; grid-template-columns:1fr 1fr; gap:9px; width:100%; }
+      .dk { position:relative; border-radius:11px; overflow:hidden; aspect-ratio:16/11; border:1px solid var(--border); }
+      .dk img { width:100%; height:100%; object-fit:cover; display:block; }
+      .dk .sc { position:absolute; inset:0; background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,.72)); }
+      .dk .nm { position:absolute; left:0; right:0; bottom:0; padding:6px 8px; color:#fff; font-size:11px; font-weight:600; display:flex; align-items:center; gap:5px; text-shadow:0 1px 2px rgba(0,0,0,.6); }
+      .dk .p { width:6px; height:6px; border-radius:999px; box-shadow:0 0 0 1px rgba(255,255,255,.8); }
+      .paste { margin-top:14px; font-size:11px; color:var(--muted); text-decoration:underline; text-underline-offset:2px; }
+      /* drawer phone */
+      .scrim { position:absolute; inset:0; background:rgba(0,0,0,.35); }
+      .drawer { position:absolute; top:0; left:0; bottom:0; width:78%; background:var(--card); border-right:1px solid var(--border); box-shadow:10px 0 30px rgba(0,0,0,.2); padding-top:6px; }
+      .dtitle { padding:14px 16px; font-weight:600; font-size:14px; }
+      .dtitle span { color:var(--muted); font-weight:400; }
+      .new { margin:0 12px 8px; width:calc(100% - 24px); border:1px solid var(--border); background:var(--card); border-radius:9px; padding:8px; font-size:12.5px; }
+      .dlabel { font-family:var(--mono); font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); padding:8px 16px 4px; }
+      .dchat { display:flex; align-items:center; gap:8px; margin:2px 8px; padding:9px 10px; border-radius:8px; font-size:12.5px; color:#44403c; }
+      .dchat.on { background:var(--muted-bg); color:var(--fg); font-weight:500; }
+      .dchat .x { margin-left:auto; color:var(--muted); font-size:12px; }
+      .dot { width:6px; height:6px; border-radius:999px; flex:none; }
+      .cap { position:absolute; bottom:-26px; left:0; right:0; text-align:center; font-family:var(--mono); font-size:10px; color:#78716c; }
+    </style>
+  </head>
+  <body>
+    <!-- Home -->
+    <div class="phone">
+      <div class="bar">
+        <div class="ham"><span></span><span></span><span></span></div>
+        <div class="title">Commander <span>Copilot</span></div>
+        <div class="avatar"></div>
+      </div>
+      <div class="body">
+        <div class="hero">Commander Copilot</div>
+        <div class="tag">Your MTG Commander deckbuilding sidekick</div>
+        <div class="composer"><input placeholder="Ask about your deck…" /><button class="send">↑</button></div>
+        <div class="or">— or load a deck —</div>
+        <div class="decks">
+          <div class="dk"><img alt="" src="https://cards.scryfall.io/art_crop/front/8/2/824b2d73-2151-4e5e-9f05-8f63e2bdcaa9.jpg?1730632010" /><div class="sc"></div><div class="nm"><span class="p" style="background:var(--r)"></span>Krenko</div></div>
+          <div class="dk"><img alt="" src="https://cards.scryfall.io/art_crop/front/a/9/a934590b-5c70-4f07-af67-fbe817a99531.jpg?1674137589" /><div class="sc"></div><div class="nm"><span class="p" style="background:var(--u)"></span>Miirym</div></div>
+        </div>
+        <div class="paste">📋 or paste a decklist</div>
+      </div>
+      <div class="cap">Home · hamburger opens chat history</div>
+    </div>
+
+    <!-- Drawer open -->
+    <div class="phone">
+      <div class="bar">
+        <div class="ham"><span></span><span></span><span></span></div>
+        <div class="title">Commander <span>Copilot</span></div>
+        <div class="avatar"></div>
+      </div>
+      <div class="scrim"></div>
+      <div class="drawer">
+        <div class="dtitle">Commander <span>Copilot</span></div>
+        <button class="new">＋ New chat</button>
+        <div class="dlabel">Recent</div>
+        <div class="dchat on"><span class="dot" style="background:var(--r)"></span>Krenko budget upgrades<span class="x">✕</span></div>
+        <div class="dchat"><span class="dot" style="background:var(--g)"></span>Miirym mana curve<span class="x">✕</span></div>
+        <div class="dchat"><span class="dot" style="background:var(--u)"></span>Mana rocks under $2<span class="x">✕</span></div>
+      </div>
+      <div class="cap">Chat history as a slide-in drawer · ✕ always visible</div>
+    </div>
+  </body>
+</html>
