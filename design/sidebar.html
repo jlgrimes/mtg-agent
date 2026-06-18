@@ -1,0 +1,43 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Conversation sidebar</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600&family=Geist+Mono:wght@400&display=swap");
+      :root {
+        --bg:#0c0a09; --panel:#16130f; --muted-bg:#1c1917; --fg:#faf8f5; --muted:#a8a29e;
+        --border:#2a2420; --gold:#e0b44a; --gold-soft:#f5d98b; --sans:"Inter",system-ui,sans-serif;
+      }
+      * { box-sizing:border-box; }
+      body { margin:0; background:#070605; font-family:var(--sans); padding:30px; display:flex; justify-content:center; }
+      .rail { width:264px; background:linear-gradient(180deg,var(--panel),var(--bg)); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+      .top { padding:14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+      .mark { font-family:"Cinzel",serif; font-weight:700; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold-soft); }
+      .new { width:100%; margin:12px; width:calc(100% - 24px); display:flex; align-items:center; justify-content:center; gap:8px; background:var(--muted-bg); border:1px solid var(--border); color:var(--fg); border-radius:10px; padding:9px; font-size:13.5px; font-weight:500; cursor:pointer; }
+      .label { font-family:"Geist Mono",monospace; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); padding:6px 18px; }
+      .list { padding:4px 8px 12px; display:grid; gap:2px; }
+      .chat { display:flex; align-items:center; gap:8px; padding:9px 10px; border-radius:9px; font-size:13.5px; color:#e8e2da; cursor:pointer; }
+      .chat:hover { background:var(--muted-bg); }
+      .chat.active { background:var(--muted-bg); color:var(--fg); font-weight:500; box-shadow:inset 2px 0 0 var(--gold); }
+      .chat .pip { width:6px; height:6px; border-radius:999px; flex:none; }
+      .truncate { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    </style>
+  </head>
+  <body>
+    <div class="rail">
+      <div class="top"><span class="mark">✦ Copilot</span></div>
+      <button class="new">＋ New chat</button>
+      <div class="label">Recent</div>
+      <div class="list">
+        <div class="chat active"><span class="pip" style="background:#d9543f"></span><span class="truncate">Krenko goblins — budget upgrades</span></div>
+        <div class="chat"><span class="pip" style="background:#4fa86a"></span><span class="truncate">Miirym dragons mana curve</span></div>
+        <div class="chat"><span class="pip" style="background:linear-gradient(90deg,#f4ead0,#5b9bd5,#5b524c)"></span><span class="truncate">Atraxa superfriends — power level</span></div>
+        <div class="chat"><span class="pip" style="background:#5b9bd5"></span><span class="truncate">Best budget mana rocks under $2</span></div>
+        <div class="chat"><span class="pip" style="background:#4fa86a"></span><span class="truncate">Golgari cheap card draw</span></div>
+      </div>
+    </div>
+  </body>
+</html>

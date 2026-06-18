@@ -1,0 +1,104 @@
+<!-- @dsCard group="Foundations" -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Commander Copilot — Foundations</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap");
+      :root {
+        --bg: #0c0a09;
+        --panel: #16130f;
+        --muted-bg: #1c1917;
+        --fg: #faf8f5;
+        --muted: #a8a29e;
+        --border: #2a2420;
+        --gold: #e0b44a;
+        --gold-soft: #f5d98b;
+        --w: #f4ead0; --u: #5b9bd5; --b: #5b524c; --r: #d9543f; --g: #4fa86a;
+        --sans: "Inter", system-ui, sans-serif;
+        --display: "Cinzel", Georgia, serif;
+        --mono: "Geist Mono", ui-monospace, monospace;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--fg);
+        font-family: var(--sans);
+        background-image: radial-gradient(1200px 500px at 50% -10%, rgba(224,180,74,0.08), transparent 60%);
+        padding: 40px;
+      }
+      .wrap { max-width: 860px; margin: 0 auto; display: grid; gap: 36px; }
+      .brand { text-align: center; padding: 28px 0 8px; }
+      .mark {
+        font-family: var(--display); font-weight: 700; letter-spacing: 0.14em;
+        font-size: 34px; text-transform: uppercase;
+        background: linear-gradient(180deg, var(--gold-soft), var(--gold));
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      .mark .pip { -webkit-text-fill-color: var(--gold); }
+      .tagline { color: var(--muted); font-size: 13px; letter-spacing: 0.04em; margin-top: 8px; }
+      h3 {
+        font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+        letter-spacing: 0.18em; color: var(--muted); margin: 0 0 14px; font-weight: 500;
+      }
+      .section { border: 1px solid var(--border); border-radius: 16px; background: var(--panel); padding: 22px; }
+      .swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+      .sw { border-radius: 10px; height: 64px; border: 1px solid rgba(255,255,255,0.06); display: flex; align-items: flex-end; padding: 8px; font-size: 10px; font-family: var(--mono); color: #0c0a09; }
+      .sw.dark { color: var(--fg); }
+      .mana-row { display: flex; gap: 14px; margin-top: 18px; align-items: center; }
+      .pip {
+        width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center;
+        font-family: var(--display); font-weight: 700; font-size: 13px; color: #0c0a09;
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25), 0 1px 3px rgba(0,0,0,0.5);
+      }
+      .type-row { display: grid; gap: 12px; }
+      .type-row .lbl { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+      .t-display { font-family: var(--display); font-size: 30px; letter-spacing: 0.1em; text-transform: uppercase; }
+      .t-h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+      .t-body { font-size: 15px; color: var(--fg); }
+      .t-muted { font-size: 13px; color: var(--muted); }
+      .t-mono { font-family: var(--mono); font-size: 13px; color: var(--gold-soft); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="brand">
+        <div class="mark">Commander <span class="pip">✦</span> Copilot</div>
+        <div class="tagline">YOUR MTG COMMANDER DECKBUILDING SIDEKICK</div>
+      </div>
+
+      <div class="section">
+        <h3>Surface &amp; Ink</h3>
+        <div class="swatches">
+          <div class="sw dark" style="background:#0c0a09">bg<br />#0C0A09</div>
+          <div class="sw dark" style="background:#16130f">panel<br />#16130F</div>
+          <div class="sw dark" style="background:#1c1917">muted<br />#1C1917</div>
+          <div class="sw" style="background:#a8a29e">muted-fg</div>
+          <div class="sw" style="background:#faf8f5">fg<br />#FAF8F5</div>
+        </div>
+        <div class="mana-row">
+          <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">MANA</span>
+          <span class="pip" style="background:var(--w)">W</span>
+          <span class="pip" style="background:var(--u)">U</span>
+          <span class="pip" style="background:var(--b);color:#faf8f5">B</span>
+          <span class="pip" style="background:var(--r)">R</span>
+          <span class="pip" style="background:var(--g)">G</span>
+          <span class="pip" style="background:linear-gradient(135deg,var(--gold-soft),var(--gold))">✦</span>
+          <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">gold accent</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Typography</h3>
+        <div class="type-row">
+          <div><span class="lbl">Cinzel · wordmark</span><div class="t-display">Commander Copilot</div></div>
+          <div><span class="lbl">Inter · heading</span><div class="t-h1">Recommend 5 upgrades for Miirym</div></div>
+          <div><span class="lbl">Inter · body</span><div class="t-body">Sol Ring is a 1-mana artifact that taps for two colorless — the most efficient ramp in the format.</div></div>
+          <div><span class="lbl">Inter · muted</span><div class="t-muted">Backed by EDHREC data from 40,000+ decks</div></div>
+          <div><span class="lbl">Geist Mono · data</span><div class="t-mono">CMC 1 · $4.30 · 94% inclusion</div></div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

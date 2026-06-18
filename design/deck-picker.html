@@ -1,0 +1,43 @@
+<!-- @dsCard group="Components" -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Deck picker</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Geist+Mono:wght@400&display=swap");
+      :root {
+        --bg:#0c0a09; --panel:#16130f; --muted-bg:#1c1917; --fg:#faf8f5; --muted:#a8a29e;
+        --border:#2a2420; --gold:#e0b44a; --gold-soft:#f5d98b;
+        --w:#f4ead0; --u:#5b9bd5; --b:#5b524c; --r:#d9543f; --g:#4fa86a; --sans:"Inter",system-ui,sans-serif;
+      }
+      * { box-sizing:border-box; }
+      body { margin:0; background:var(--bg); color:var(--fg); font-family:var(--sans); padding:40px; }
+      .wrap { max-width:600px; margin:0 auto; display:grid; gap:16px; text-align:center; }
+      .label { font-family:"Geist Mono",monospace; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+      .who { font-size:12.5px; color:var(--muted); }
+      .who b { color:var(--gold-soft); }
+      .chips { display:flex; flex-wrap:wrap; gap:9px; justify-content:center; }
+      .chip { display:flex; align-items:center; gap:8px; background:var(--muted-bg); border:1px solid var(--border); border-radius:999px; padding:8px 14px; font-size:13px; cursor:pointer; transition:.15s; }
+      .chip:hover { border-color:rgba(224,180,74,.4); }
+      .dots { display:flex; gap:3px; }
+      .dot { width:8px; height:8px; border-radius:999px; }
+      .tag { font-family:"Geist Mono",monospace; font-size:9.5px; color:var(--muted); border:1px solid var(--border); border-radius:5px; padding:0 5px; }
+      .connect { display:inline-flex; align-items:center; gap:8px; border:1px solid var(--border); border-radius:999px; padding:9px 18px; color:var(--muted); font-size:13.5px; cursor:pointer; margin:0 auto; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="label">— or analyze one of your decks —</div>
+      <div class="who">Your decks · <b>jlgrimes</b></div>
+      <div class="chips">
+        <span class="chip"><span class="dots"><span class="dot" style="background:var(--r)"></span></span> Krenko Goblins <span class="tag">B3</span></span>
+        <span class="chip"><span class="dots"><span class="dot" style="background:var(--u)"></span><span class="dot" style="background:var(--r)"></span><span class="dot" style="background:var(--g)"></span></span> Miirym Dragons</span>
+        <span class="chip"><span class="dots"><span class="dot" style="background:var(--w)"></span><span class="dot" style="background:var(--u)"></span><span class="dot" style="background:var(--b)"></span><span class="dot" style="background:var(--g)"></span></span> Atraxa Superfriends <span class="tag">private</span></span>
+        <span class="chip"><span class="dots"><span class="dot" style="background:var(--b)"></span><span class="dot" style="background:var(--g)"></span></span> Golgari Midrange</span>
+      </div>
+      <div style="margin-top:8px"><span class="connect">🔗 Connect Archidekt to load your decks</span></div>
+    </div>
+  </body>
+</html>
