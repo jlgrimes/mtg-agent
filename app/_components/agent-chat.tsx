@@ -3,6 +3,7 @@
 import { Show, SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 import { useEveAgent } from "eve/react";
 import { AlertCircleIcon } from "lucide-react";
+import { useRef, useState } from "react";
 import { DeckSidebar } from "./deck-sidebar";
 import {
   Conversation,
@@ -31,13 +32,44 @@ const STARTER_PROMPTS = [
 
 type AgentStatus = ReturnType<typeof useEveAgent>["status"];
 
+interface ActiveDeck {
+  name: string;
+  decklistText: string;
+  commanders: string[];
+}
+
+const DECK_STARTERS = [
+  "Give me an overview of this deck",
+  "What should I cut, and why?",
+  "Is my mana curve and land count okay?",
+  "Suggest 5 upgrades that fit this deck",
+];
+
 export function AgentChat() {
   const { getToken } = useAuth();
-  // Attach the signed-in user's Clerk token to every agent request. useEveAgent
-  // re-resolves this before each call (and on reconnects), so short-lived Clerk
-  // session tokens stay fresh automatically.
+  const [activeDeck, setActiveDeck] = useState<ActiveDeck | null>(null);
+  // Keep the latest active deck in a ref so prepareSend (below) always reads the
+  // current selection, not a stale closure.
+  const activeDeckRef = useRef<ActiveDeck | null>(null);
+  activeDeckRef.current = activeDeck;
+
+  // Attach the signed-in user's Clerk token to every agent request, and ride the
+  // selected deck along as one-turn context so the user can just ask questions
+  // about it. clientContext is injected per-turn and never bloats stored history.
   const agent = useEveAgent({
     auth: { bearer: async () => (await getToken()) ?? "" },
+    prepareSend: (input) => {
+      const deck = activeDeckRef.current;
+      if (!deck) return input;
+      const cmdr = deck.commanders.length ? ` (commander: ${deck.commanders.join(" & ")})` : "";
+      return {
+        ...input,
+        clientContext:
+          `The user's currently selected deck is "${deck.name}"${cmdr}. Treat their question ` +
+          `as being about THIS deck unless they clearly say otherwise. When they ask for ` +
+          `analysis or upgrades, run analyze_decklist on it first. Full decklist:\n${deck.decklistText}`,
+      };
+    },
   });
   const isBusy = agent.status === "submitted" || agent.status === "streaming";
   const isEmpty = agent.data.messages.length === 0;
@@ -49,26 +81,41 @@ export function AgentChat() {
     await agent.send({ message: text });
   };
 
-  const handlePickDeck = (deck: {
-    name: string;
-    decklistText: string;
-    commanders: string[];
-  }) => {
-    if (isBusy || !deck.decklistText) return;
-    const cmdr = deck.commanders.length ? ` My commander is ${deck.commanders.join(" & ")}.` : "";
-    void agent.send({
-      message:
-        `Here's my Archidekt deck "${deck.name}".${cmdr} Please analyze it — mana curve, ` +
-        `land count, and a quick assessment with any upgrade ideas:\n\n${deck.decklistText}`,
-    });
+  // Picking a deck makes it the active context — it does NOT send a message.
+  const handlePickDeck = (deck: ActiveDeck) => {
+    if (!deck.decklistText) return;
+    setActiveDeck(deck);
   };
+
+  const placeholder = activeDeck
+    ? `Ask anything about "${activeDeck.name}" — cuts, curve, upgrades…`
+    : "Ask about your Commander deck — upgrades, mana curve, card ideas…";
 
   const composer = (
     <PromptInput onSubmit={handleSubmit}>
-      <PromptInputTextarea placeholder="Ask about your Commander deck — upgrades, mana curve, card ideas…" />
+      <PromptInputTextarea placeholder={placeholder} />
       <PromptInputSubmit onStop={agent.stop} status={agent.status} />
     </PromptInput>
   );
+
+  const activeDeckBanner = activeDeck ? (
+    <div className="mb-2 flex w-full items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+      <span aria-hidden>📋</span>
+      <span className="min-w-0 flex-1 truncate">
+        Active deck: <span className="font-medium">{activeDeck.name}</span>
+        {activeDeck.commanders.length ? (
+          <span className="text-muted-foreground"> · {activeDeck.commanders.join(" & ")}</span>
+        ) : null}
+      </span>
+      <button
+        className="shrink-0 text-muted-foreground text-xs hover:text-foreground"
+        onClick={() => setActiveDeck(null)}
+        type="button"
+      >
+        Clear
+      </button>
+    </div>
+  ) : null;
 
   const chat = (
     <main className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
@@ -142,10 +189,13 @@ export function AgentChat() {
             </a>
           </div>
         ) : null}
-        <div className="w-full">{composer}</div>
+        <div className="w-full">
+          {activeDeckBanner}
+          {composer}
+        </div>
         {isEmpty ? (
           <div className="flex w-full flex-wrap justify-center gap-2">
-            {STARTER_PROMPTS.map((prompt) => (
+            {(activeDeck ? DECK_STARTERS : STARTER_PROMPTS).map((prompt) => (
               <button
                 className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-left text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
                 disabled={isBusy}
