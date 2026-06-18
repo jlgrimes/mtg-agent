@@ -24,8 +24,10 @@ description: Use when the user wants upgrade suggestions, cards to add, cuts to 
 - Respect budget: surface `priceUsd` and offer budget alternatives when a pick is pricey.
 
 ## Present recommendations
-- Group by role: **Ramp / Card Draw / Removal / Wincons / Synergy / Lands**.
-- For each: **Card Name** — one-line reason (the role it fills), and price if budget matters.
-- **Always pair adds with cuts.** Suggest the weakest current cards to remove (win-more, off-theme,
-  high-CMC with no payoff) so the deck stays at 100. Explain each cut briefly.
-- Offer a short "if you have more budget" tier and a "budget-friendly" tier when relevant.
+- **Call `recommend_cards` to present the adds** — pass each card's exact `name`, its `role`
+  (Ramp / Draw / Removal / Wincon / Synergy / Land), and a one-line `reason`. The app renders them
+  as rich cards with art, price, and a Buy link. Do NOT also list those same cards in prose.
+- In text, add only a short lead-in (the `intro` can carry this) plus your **cuts**: name the weakest
+  current cards to remove (win-more, off-theme, high-CMC with no payoff) so the deck stays at 100.
+- For tiered suggestions, you can call `recommend_cards` more than once (e.g. a budget set, then a
+  "if you have more budget" set) with a short intro on each.

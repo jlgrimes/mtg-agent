@@ -10,8 +10,9 @@ export default defineTool({
     "buy link). ALWAYS call this when you recommend specific cards to ADD to a deck, suggest cards " +
     "to try, or answer 'any cool cards?'. Pass each card's exact name, a one-line reason, and its " +
     "role. The tool enriches them with current price + art + a purchase link, and the app renders " +
-    "them as cards. After calling it, do NOT re-list the same cards in prose — just add a short " +
-    "framing sentence or a note about cuts.",
+    "them as cards. You do NOT need to look up each card with scryfall_card first — this tool fetches " +
+    "price and art for you. After calling it, do NOT re-list the same cards in prose — just add a " +
+    "short framing sentence or a note about cuts.",
   inputSchema: z.object({
     intro: z
       .string()
