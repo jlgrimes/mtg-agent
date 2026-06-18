@@ -3,7 +3,7 @@
 import { useAuth } from "@clerk/nextjs";
 import { useEveAgent } from "eve/react";
 import { AlertCircleIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Conversation,
   ConversationContent,
@@ -83,18 +83,39 @@ export function ChatView({
           `analysis or upgrades, run analyze_decklist on it first. Full decklist:\n${deck.decklistText}`,
       };
     },
-    onFinish: (snapshot) => {
-      const session = snapshot.session as ChatCursor | undefined;
-      if (!session?.sessionId) return;
-      const messages = snapshot.data.messages as unknown as UiMessage[];
-      const firstUser = messages.find((m) => m.role === "user");
-      const title = firstUser ? messageText(firstUser).slice(0, 80) : "New chat";
-      onPersist({ session, title: title || "New chat" });
-    },
   });
 
   const isBusy = agent.status === "submitted" || agent.status === "streaming";
   const isEmpty = agent.data.messages.length === 0;
+
+  // Persist the chat each time a turn completes (status returns to "ready").
+  // We read the live session cursor + messages from refs so the effect always
+  // sees current values without re-subscribing on every streamed delta.
+  const onPersistRef = useRef(onPersist);
+  onPersistRef.current = onPersist;
+  const sessionRef = useRef(agent.session);
+  sessionRef.current = agent.session;
+  const messagesRef = useRef(agent.data.messages);
+  messagesRef.current = agent.data.messages;
+  const prevStatusRef = useRef(agent.status);
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = agent.status;
+    if (agent.status !== "ready" || (prev !== "streaming" && prev !== "submitted")) return;
+    const s = sessionRef.current;
+    if (!s?.sessionId) return;
+    const messages = messagesRef.current as unknown as UiMessage[];
+    const firstUser = messages.find((m) => m.role === "user");
+    const title = (firstUser ? messageText(firstUser).slice(0, 80) : "") || "New chat";
+    onPersistRef.current({
+      session: {
+        sessionId: s.sessionId,
+        continuationToken: s.continuationToken ?? "",
+        streamIndex: s.streamIndex,
+      },
+      title,
+    });
+  }, [agent.status]);
 
   const handleSubmit = async (message: PromptInputMessage) => {
     const text = message.text.trim();

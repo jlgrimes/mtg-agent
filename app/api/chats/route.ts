@@ -23,14 +23,14 @@ export async function POST(req: Request) {
   if (!userId) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  if (!body?.sessionId || !body?.continuationToken) {
-    return NextResponse.json({ error: "sessionId and continuationToken are required." }, { status: 400 });
+  if (!body?.sessionId) {
+    return NextResponse.json({ error: "sessionId is required." }, { status: 400 });
   }
   try {
     const chat = await createChat(userId, {
       title: String(body.title ?? "New chat"),
       sessionId: String(body.sessionId),
-      continuationToken: String(body.continuationToken),
+      continuationToken: String(body.continuationToken ?? ""),
       streamIndex: typeof body.streamIndex === "number" ? body.streamIndex : undefined,
     });
     return NextResponse.json({ chat });
