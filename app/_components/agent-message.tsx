@@ -82,6 +82,9 @@ function AgentMessagePart({
         </Reasoning>
       );
     case "dynamic-tool":
+      if (part.toolName === "recommend_cards") {
+        return <RecommendationCards part={part} />;
+      }
       return (
         <Tool
           defaultOpen={part.state === "approval-requested" || part.state === "approval-responded"}
@@ -155,6 +158,93 @@ function InputRequestActions({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+interface RecommendedCard {
+  name: string;
+  role: string | null;
+  reason: string;
+  priceUsd: number | null;
+  artCrop: string | null;
+  buyUrl: string | null;
+}
+
+const ROLE_TONE: Record<string, string> = {
+  Ramp: "bg-green-500/15 text-green-700 dark:text-green-400",
+  Draw: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
+  Removal: "bg-red-500/15 text-red-700 dark:text-red-400",
+  Wincon: "bg-amber-500/15 text-amber-700 dark:text-amber-500",
+  Synergy: "bg-violet-500/15 text-violet-700 dark:text-violet-400",
+  Land: "bg-stone-500/15 text-stone-600 dark:text-stone-400",
+  Other: "bg-muted text-muted-foreground",
+};
+
+function RecommendationCards({ part }: { readonly part: EveDynamicToolPart }) {
+  const data = part.output as { intro?: string | null; cards?: RecommendedCard[] } | undefined;
+
+  if (!data?.cards) {
+    return (
+      <div className="my-1 animate-pulse text-muted-foreground text-sm">Finding cards…</div>
+    );
+  }
+
+  return (
+    <div className="my-1 flex flex-col gap-2">
+      {data.intro ? <p className="text-sm">{data.intro}</p> : null}
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        {data.cards.map((card) => (
+          <div
+            className="flex items-center gap-3 border-border border-t px-3 py-2.5 first:border-t-0"
+            key={card.name}
+          >
+            {card.artCrop ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                alt=""
+                className="h-10 w-14 shrink-0 rounded object-cover"
+                loading="lazy"
+                src={card.artCrop}
+              />
+            ) : (
+              <div className="grid h-10 w-14 shrink-0 place-items-center rounded bg-muted font-medium text-muted-foreground text-sm">
+                {card.name.slice(0, 1)}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                {card.role ? (
+                  <span
+                    className={`rounded px-1.5 py-0.5 font-medium text-[10px] ${ROLE_TONE[card.role] ?? ROLE_TONE.Other}`}
+                  >
+                    {card.role}
+                  </span>
+                ) : null}
+                <span className="truncate font-medium text-sm">{card.name}</span>
+              </div>
+              <div className="truncate text-muted-foreground text-xs">{card.reason}</div>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              {card.priceUsd != null ? (
+                <span className="font-mono text-muted-foreground text-xs">
+                  ${card.priceUsd.toFixed(2)}
+                </span>
+              ) : null}
+              {card.buyUrl ? (
+                <a
+                  className="rounded-md bg-foreground px-2 py-0.5 font-medium text-[11px] text-background transition-opacity hover:opacity-90"
+                  href={card.buyUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  Buy →
+                </a>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

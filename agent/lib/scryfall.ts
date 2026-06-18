@@ -27,6 +27,8 @@ export interface SimpleCard {
   edhrecRank: number | null;
   legalCommander: boolean;
   scryfallUri: string | null;
+  artCrop: string | null;
+  buyUrl: string | null;
 }
 
 async function sleep(ms: number) {
@@ -73,6 +75,9 @@ export function toSimpleCard(card: any): SimpleCard {
     edhrecRank: card.edhrec_rank ?? null,
     legalCommander: card.legalities?.commander === "legal",
     scryfallUri: card.scryfall_uri ?? null,
+    artCrop: card.image_uris?.art_crop ?? card.card_faces?.[0]?.image_uris?.art_crop ?? null,
+    // Scryfall's TCGplayer purchase link (swap in your own affiliate id later for monetization).
+    buyUrl: card.purchase_uris?.tcgplayer ?? card.scryfall_uri ?? null,
   };
 }
 
