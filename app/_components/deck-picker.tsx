@@ -12,7 +12,7 @@ interface DeckSummary {
   unlisted: boolean;
 }
 
-interface PickedDeck {
+export interface PickedDeck {
   name: string;
   decklistText: string;
   commanders: string[];
@@ -26,21 +26,17 @@ const COLOR_DOT: Record<string, string> = {
   G: "bg-green-500",
 };
 
-export function DeckSidebar({
-  onPickDeck,
-  busy,
-}: {
-  readonly onPickDeck: (deck: PickedDeck) => void;
-  readonly busy: boolean;
-}) {
+// Home-screen Archidekt deck picker: connect once, then click a deck to make it
+// the active context for the chat. Lives on the empty/home view, not the sidebar.
+export function DeckPicker({ onSelect }: { readonly onSelect: (deck: PickedDeck) => void }) {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [decks, setDecks] = useState<DeckSummary[]>([]);
   const [loadingDecks, setLoadingDecks] = useState(false);
   const [pickingId, setPickingId] = useState<number | null>(null);
+  const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // connect form
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [connecting, setConnecting] = useState(false);
@@ -89,6 +85,7 @@ export function DeckSidebar({
       if (!res.ok) throw new Error(data.error ?? "Connection failed.");
       setConnected(true);
       setUsername(data.username);
+      setShowForm(false);
       setIdentifier("");
       setPassword("");
       await loadDecks();
@@ -107,14 +104,14 @@ export function DeckSidebar({
   };
 
   const handlePick = async (deck: DeckSummary) => {
-    if (busy || pickingId) return;
+    if (pickingId) return;
     setPickingId(deck.id);
     setError(null);
     try {
       const res = await fetch(`/api/archidekt/decks/${deck.id}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to load deck.");
-      onPickDeck({
+      onSelect({
         name: data.name ?? deck.name,
         decklistText: data.decklistText ?? "",
         commanders: data.commanders ?? [],
@@ -126,47 +123,21 @@ export function DeckSidebar({
     }
   };
 
-  return (
-    <aside className="flex h-dvh w-72 shrink-0 flex-col border-border border-r bg-muted/20">
-      <div className="flex items-center justify-between px-4 py-3">
-        <span className="font-medium text-sm">My Decks</span>
-        {connected ? (
-          <button
-            className="text-muted-foreground text-xs hover:text-foreground"
-            onClick={handleDisconnect}
-            type="button"
-          >
-            Disconnect
-          </button>
-        ) : null}
-      </div>
+  if (connected === null) return null;
 
-      {connected ? (
-        <p className="px-4 pb-2 text-muted-foreground text-xs">
-          Archidekt: <span className="text-foreground">{username}</span>
-        </p>
-      ) : null}
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
-        {connected === null ? (
-          <p className="px-2 py-4 text-muted-foreground text-xs">Loading…</p>
-        ) : connected ? (
-          <DeckList
-            decks={decks}
-            error={error}
-            loading={loadingDecks}
-            onPick={handlePick}
-            pickingId={pickingId}
-          />
-        ) : (
-          <form className="flex flex-col gap-2 px-2 pt-2" onSubmit={handleConnect}>
-            <p className="pb-1 text-muted-foreground text-xs leading-relaxed">
-              Connect your Archidekt account to browse and analyze your decks (including private
-              ones). Your password is used once to get a token and is never stored.
+  // --- Not connected: a quiet prompt that expands into the login form ---
+  if (!connected) {
+    return (
+      <div className="flex w-full flex-col items-center gap-3">
+        {showForm ? (
+          <form className="flex w-full max-w-sm flex-col gap-2" onSubmit={handleConnect}>
+            <p className="text-center text-muted-foreground text-xs leading-relaxed">
+              Connect Archidekt to browse and analyze your decks (private ones included). Your
+              password is used once to get a token and is never stored.
             </p>
             <input
               autoComplete="username"
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-foreground/40"
+              className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40"
               onChange={(e) => setIdentifier(e.target.value)}
               placeholder="Archidekt username or email"
               type="text"
@@ -174,56 +145,69 @@ export function DeckSidebar({
             />
             <input
               autoComplete="current-password"
-              className="rounded-md border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-foreground/40"
+              className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40"
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               type="password"
               value={password}
             />
             <button
-              className="rounded-md bg-foreground px-3 py-1.5 font-medium text-background text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="rounded-md bg-foreground px-3 py-2 font-medium text-background text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
               disabled={connecting || !identifier || !password}
               type="submit"
             >
-              {connecting ? "Connecting…" : "Connect Archidekt"}
+              {connecting ? "Connecting…" : "Connect"}
             </button>
-            {error ? <p className="text-destructive text-xs">{error}</p> : null}
+            <button
+              className="text-muted-foreground text-xs hover:text-foreground"
+              onClick={() => setShowForm(false)}
+              type="button"
+            >
+              Cancel
+            </button>
+            {error ? <p className="text-center text-destructive text-xs">{error}</p> : null}
           </form>
-        )}
-      </div>
-    </aside>
-  );
-}
-
-function DeckList({
-  decks,
-  loading,
-  error,
-  pickingId,
-  onPick,
-}: {
-  readonly decks: DeckSummary[];
-  readonly loading: boolean;
-  readonly error: string | null;
-  readonly pickingId: number | null;
-  readonly onPick: (deck: DeckSummary) => void;
-}) {
-  if (loading) return <p className="px-2 py-4 text-muted-foreground text-xs">Loading decks…</p>;
-  if (error) return <p className="px-2 py-4 text-destructive text-xs">{error}</p>;
-  if (decks.length === 0)
-    return <p className="px-2 py-4 text-muted-foreground text-xs">No Commander decks found.</p>;
-
-  return (
-    <ul className="flex flex-col gap-0.5">
-      {decks.map((deck) => (
-        <li key={deck.id}>
+        ) : (
           <button
-            className="flex w-full flex-col items-start gap-1 rounded-md px-2 py-2 text-left transition-colors hover:bg-muted disabled:opacity-50"
-            disabled={pickingId !== null}
-            onClick={() => onPick(deck)}
+            className="rounded-full border border-border px-4 py-1.5 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
+            onClick={() => setShowForm(true)}
             type="button"
           >
-            <span className="flex w-full items-center gap-2">
+            🔗 Connect Archidekt to load your decks
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // --- Connected: pick a deck ---
+  return (
+    <div className="flex w-full flex-col items-center gap-2">
+      <div className="flex items-center gap-2 text-muted-foreground text-xs">
+        <span>
+          Your decks · <span className="text-foreground">{username}</span>
+        </span>
+        <button className="hover:text-foreground" onClick={handleDisconnect} type="button">
+          (disconnect)
+        </button>
+      </div>
+
+      {loadingDecks ? (
+        <p className="text-muted-foreground text-xs">Loading decks…</p>
+      ) : error ? (
+        <p className="text-destructive text-xs">{error}</p>
+      ) : decks.length === 0 ? (
+        <p className="text-muted-foreground text-xs">No Commander decks found.</p>
+      ) : (
+        <div className="flex max-h-40 w-full max-w-xl flex-wrap justify-center gap-2 overflow-y-auto">
+          {decks.map((deck) => (
+            <button
+              className="flex items-center gap-2 rounded-full border border-border bg-muted/30 px-3 py-1.5 text-sm transition-colors hover:bg-muted disabled:opacity-50"
+              disabled={pickingId !== null}
+              key={deck.id}
+              onClick={() => handlePick(deck)}
+              type="button"
+            >
               <span className="flex gap-0.5">
                 {(deck.colors.length ? deck.colors : ["C"]).map((c, i) => (
                   <span
@@ -232,19 +216,12 @@ function DeckList({
                   />
                 ))}
               </span>
-              <span className="min-w-0 flex-1 truncate text-sm">{deck.name}</span>
-              {pickingId === deck.id ? (
-                <span className="text-muted-foreground text-xs">…</span>
-              ) : null}
-            </span>
-            <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
-              <span>{deck.size} cards</span>
-              {deck.bracket ? <span>· B{deck.bracket}</span> : null}
-              {deck.private ? <span>· private</span> : deck.unlisted ? <span>· unlisted</span> : null}
-            </span>
-          </button>
-        </li>
-      ))}
-    </ul>
+              <span className="max-w-[14rem] truncate">{deck.name}</span>
+              {pickingId === deck.id ? <span className="text-muted-foreground">…</span> : null}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
