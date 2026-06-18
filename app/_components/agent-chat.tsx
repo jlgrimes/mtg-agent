@@ -1,9 +1,16 @@
 "use client";
 
-import { Show, SignInButton, UserButton } from "@clerk/nextjs";
+import { Show, SignInButton, useAuth, UserButton } from "@clerk/nextjs";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AGENT_NAME, AGENT_TAGLINE, type ChatCursor, ChatView } from "./chat-view";
+import {
+  AGENT_NAME,
+  AGENT_TAGLINE,
+  type ChatCursor,
+  ChatView,
+  type EveInitialEvents,
+} from "./chat-view";
 import { ChatList, type ChatSummary } from "./chat-list";
+import { fetchSessionEvents } from "./replay";
 
 export function AgentChat() {
   return (
@@ -19,10 +26,13 @@ export function AgentChat() {
 }
 
 function SignedInApp() {
+  const { getToken } = useAuth();
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [loadingChats, setLoadingChats] = useState(true);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [initialSession, setInitialSession] = useState<ChatCursor | undefined>(undefined);
+  const [initialEvents, setInitialEvents] = useState<EveInitialEvents>(undefined);
+  const [opening, setOpening] = useState(false);
   const [viewKey, setViewKey] = useState("new-0");
 
   // chatIdRef is the source of truth for persistence (create vs. update) and
@@ -51,24 +61,36 @@ function SignedInApp() {
     nonceRef.current += 1;
     setCurrentChatId(null);
     setInitialSession(undefined);
+    setInitialEvents(undefined);
     setViewKey(`new-${nonceRef.current}`);
   }, []);
 
-  const openChat = useCallback(async (id: string) => {
-    const res = await fetch(`/api/chats/${id}`);
-    if (!res.ok) return;
-    const { chat } = await res.json();
-    chatIdRef.current = id;
-    creatingRef.current = false;
-    setCurrentChatId(id);
-    // streamIndex 0 -> replay the full conversation history on resume.
-    setInitialSession({
-      sessionId: chat.sessionId,
-      continuationToken: chat.continuationToken,
-      streamIndex: 0,
-    });
-    setViewKey(`open-${id}`);
-  }, []);
+  const openChat = useCallback(
+    async (id: string) => {
+      setOpening(true);
+      try {
+        const res = await fetch(`/api/chats/${id}`);
+        if (!res.ok) return;
+        const { chat } = await res.json();
+        // Replay the recorded stream so the chat reopens with its full history.
+        const token = await getToken();
+        const events = token ? await fetchSessionEvents(chat.sessionId, token) : [];
+        chatIdRef.current = id;
+        creatingRef.current = false;
+        setCurrentChatId(id);
+        setInitialSession({
+          sessionId: chat.sessionId,
+          continuationToken: chat.continuationToken,
+          streamIndex: 0,
+        });
+        setInitialEvents(events as EveInitialEvents);
+        setViewKey(`open-${id}-${nonceRef.current++}`);
+      } finally {
+        setOpening(false);
+      }
+    },
+    [getToken],
+  );
 
   const deleteChat = useCallback(
     async (id: string) => {
@@ -124,7 +146,17 @@ function SignedInApp() {
         <div className="absolute top-3 right-4 z-10">
           <UserButton />
         </div>
-        <ChatView initialSession={initialSession} key={viewKey} onPersist={handlePersist} />
+        {opening ? (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 text-muted-foreground text-sm">
+            Loading conversation…
+          </div>
+        ) : null}
+        <ChatView
+          initialEvents={initialEvents}
+          initialSession={initialSession}
+          key={viewKey}
+          onPersist={handlePersist}
+        />
       </div>
     </div>
   );

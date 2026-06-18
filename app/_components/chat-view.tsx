@@ -41,6 +41,9 @@ export interface ChatCursor {
   streamIndex: number;
 }
 
+// The exact event type eve's hook expects to seed prior history.
+export type EveInitialEvents = NonNullable<Parameters<typeof useEveAgent>[0]>["initialEvents"];
+
 interface UiMessage {
   role: string;
   parts: { type: string; text?: string }[];
@@ -58,9 +61,11 @@ function messageText(message: { parts: { type: string; text?: string }[] }): str
 
 export function ChatView({
   initialSession,
+  initialEvents,
   onPersist,
 }: {
   readonly initialSession?: ChatCursor;
+  readonly initialEvents?: EveInitialEvents;
   readonly onPersist: (data: { session: ChatCursor; title: string }) => void;
 }) {
   const { getToken } = useAuth();
@@ -70,6 +75,7 @@ export function ChatView({
 
   const agent = useEveAgent({
     initialSession,
+    initialEvents,
     auth: { bearer: async () => (await getToken()) ?? "" },
     prepareSend: (input) => {
       const deck = activeDeckRef.current;
