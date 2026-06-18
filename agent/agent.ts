@@ -1,7 +1,8 @@
 import { defineAgent } from "eve";
 
 export default defineAgent({
-  // Trying Kimi K2.7 (strong agentic/tool use, cheaper than Haiku) as a free-tier
-  // model. Fallbacks: anthropic/claude-haiku-4.5 (reliable), sonnet-4.6 (premium).
-  model: "moonshotai/kimi-k2.7-code",
+  // Haiku 4.5: fast + reliable tool use + good instruction-following (skips the
+  // redundant lookups that made Kimi slow). Cheap enough for a free tier; bump to
+  // sonnet-4.6 for a premium tier.
+  model: "anthropic/claude-haiku-4.5",
 });
