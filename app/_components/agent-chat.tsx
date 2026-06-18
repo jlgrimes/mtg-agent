@@ -1,5 +1,6 @@
 "use client";
 
+import { Show, SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 import { useEveAgent } from "eve/react";
 import { AlertCircleIcon } from "lucide-react";
 import {
@@ -30,7 +31,13 @@ const STARTER_PROMPTS = [
 type AgentStatus = ReturnType<typeof useEveAgent>["status"];
 
 export function AgentChat() {
-  const agent = useEveAgent();
+  const { getToken } = useAuth();
+  // Attach the signed-in user's Clerk token to every agent request. useEveAgent
+  // re-resolves this before each call (and on reconnects), so short-lived Clerk
+  // session tokens stay fresh automatically.
+  const agent = useEveAgent({
+    auth: { bearer: async () => (await getToken()) ?? "" },
+  });
   const isBusy = agent.status === "submitted" || agent.status === "streaming";
   const isEmpty = agent.data.messages.length === 0;
 
@@ -48,7 +55,7 @@ export function AgentChat() {
     </PromptInput>
   );
 
-  return (
+  const chat = (
     <main className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
       {isEmpty ? null : (
         <header className="flex h-14 shrink-0 items-center justify-center gap-3 pl-4 pr-2">
@@ -137,6 +144,43 @@ export function AgentChat() {
           </div>
         ) : null}
       </div>
+    </main>
+  );
+
+  return (
+    <>
+      <Show when="signed-out">
+        <SignInLanding />
+      </Show>
+      <Show when="signed-in">
+        <div className="fixed top-3 right-4 z-10">
+          <UserButton />
+        </div>
+        {chat}
+      </Show>
+    </>
+  );
+}
+
+function SignInLanding() {
+  return (
+    <main className="flex h-dvh flex-col items-center justify-center gap-6 bg-background px-6 text-center text-foreground">
+      <div className="flex flex-col items-center gap-2">
+        <h1 className="font-medium text-5xl tracking-tighter">{AGENT_NAME}</h1>
+        <p className="text-muted-foreground text-sm">{AGENT_TAGLINE}</p>
+      </div>
+      <p className="max-w-sm text-muted-foreground text-sm">
+        Sign in to analyze your decks, get upgrade recommendations, and find spicy cards for your
+        commander.
+      </p>
+      <SignInButton mode="modal">
+        <button
+          className="rounded-full bg-foreground px-6 py-2.5 font-medium text-background text-sm transition-opacity hover:opacity-90"
+          type="button"
+        >
+          Sign in to start
+        </button>
+      </SignInButton>
     </main>
   );
 }
