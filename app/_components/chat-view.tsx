@@ -15,6 +15,7 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
+import { Shimmer } from "@/components/ai-elements/shimmer";
 import { cn } from "@/lib/utils";
 import { AgentMessage } from "./agent-message";
 import { DeckPicker, type PickedDeck } from "./deck-picker";
@@ -53,7 +54,6 @@ interface UiMessage {
   parts: { type: string; text?: string }[];
 }
 
-type AgentStatus = ReturnType<typeof useEveAgent>["status"];
 
 function messageText(message: { parts: { type: string; text?: string }[] }): string {
   return message.parts
@@ -157,15 +157,7 @@ export function ChatView({
     : "Ask about your Commander deck — upgrades, mana curve, card ideas…";
 
   return (
-    <main className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
-      {isEmpty ? null : (
-        <header className="flex h-14 shrink-0 items-center justify-center gap-3 pr-16 pl-4">
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-muted-foreground text-sm">{AGENT_NAME}</span>
-            <StatusDot status={agent.status} />
-          </span>
-        </header>
-      )}
+    <main className="flex h-full flex-col overflow-hidden bg-background text-foreground">
 
       {agent.error ? (
         <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pt-2 sm:px-6">
@@ -198,6 +190,14 @@ export function ChatView({
                   onInputResponses={(inputResponses) => agent.send({ inputResponses })}
                 />
               ))}
+              {agent.status === "submitted" ? (
+                <div className="flex items-center gap-1.5 text-sm">
+                  <span aria-hidden>✦</span>
+                  <Shimmer as="span" className="text-sm">
+                    Thinking…
+                  </Shimmer>
+                </div>
+              ) : null}
             </ConversationContent>
             <ConversationScrollButton />
           </Conversation>
@@ -305,28 +305,5 @@ export function ChatView({
         ) : null}
       </div>
     </main>
-  );
-}
-
-function StatusDot({ status }: { readonly status: AgentStatus }) {
-  const isLive = status === "submitted" || status === "streaming";
-  const tone =
-    status === "error"
-      ? "bg-destructive"
-      : isLive
-        ? "bg-emerald-500"
-        : status === "ready"
-          ? "bg-muted-foreground"
-          : "bg-muted-foreground/50";
-
-  return (
-    <span className="relative flex size-1">
-      {isLive ? (
-        <span
-          className={cn("absolute inline-flex size-full animate-ping rounded-full opacity-75", tone)}
-        />
-      ) : null}
-      <span className={cn("relative inline-flex size-1 rounded-full transition-colors", tone)} />
-    </span>
   );
 }

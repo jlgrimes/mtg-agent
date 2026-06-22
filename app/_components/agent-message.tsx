@@ -1,16 +1,22 @@
 "use client";
 
 import type { EveDynamicToolPart, EveMessage, EveMessagePart } from "eve/react";
+import { CheckIcon } from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
-import {
-  Tool,
-  ToolContent,
-  ToolHeader,
-  ToolInput,
-  ToolOutput,
-} from "@/components/ai-elements/tool";
+import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Button } from "@/components/ui/button";
+
+// Human-readable status for each tool, shown instead of raw tool/JSON widgets.
+const TOOL_LABELS: Record<string, { running: string; done: string; icon: string }> = {
+  edhrec_commander: { running: "Consulting EDHREC", done: "Checked EDHREC", icon: "📖" },
+  edhrec_card: { running: "Checking card synergies", done: "Checked synergies", icon: "🔗" },
+  scryfall_card: { running: "Looking up a card", done: "Looked up a card", icon: "🔍" },
+  scryfall_search: { running: "Searching cards", done: "Searched cards", icon: "🔍" },
+  analyze_decklist: { running: "Analyzing your deck", done: "Analyzed your deck", icon: "📊" },
+  archidekt_import: { running: "Importing your deck", done: "Imported your deck", icon: "📥" },
+  recommend_cards: { running: "Finding the best cards", done: "", icon: "🃏" },
+};
 
 export type AgentInputResponse = {
   readonly optionId?: string;
@@ -82,31 +88,52 @@ function AgentMessagePart({
         </Reasoning>
       );
     case "dynamic-tool":
+      // A pending human-in-the-loop question/approval rides on the tool part.
+      if (part.toolMetadata?.eve?.inputRequest) {
+        return (
+          <InputRequestActions
+            canRespond={canRespond}
+            onInputResponses={onInputResponses}
+            part={part}
+          />
+        );
+      }
       if (part.toolName === "recommend_cards") {
         return <RecommendationCards part={part} />;
       }
-      return (
-        <Tool
-          defaultOpen={part.state === "approval-requested" || part.state === "approval-responded"}
-        >
-          <ToolHeader
-            state={part.state}
-            title={part.toolName}
-            toolName={part.toolName}
-            type="dynamic-tool"
-          />
-          <ToolContent>
-            <ToolInput input={part.input} />
-            <InputRequestActions
-              canRespond={canRespond}
-              part={part}
-              onInputResponses={onInputResponses}
-            />
-            <ToolOutput errorText={part.errorText} output={part.output} />
-          </ToolContent>
-        </Tool>
-      );
+      return <ToolStatus part={part} />;
   }
+}
+
+// Compact, human-readable status line for a tool call (replaces raw JSON widgets).
+function ToolStatus({ part }: { readonly part: EveDynamicToolPart }) {
+  const meta = TOOL_LABELS[part.toolName];
+  const running = part.state === "input-available" || part.state === "input-streaming";
+  const errored = part.state === "output-error" || part.state === "output-denied";
+  const icon = meta?.icon ?? "🔧";
+
+  if (errored) {
+    return (
+      <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+        <span aria-hidden>⚠</span> {meta?.done ?? part.toolName} — couldn’t complete
+      </div>
+    );
+  }
+  if (running) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs">
+        <span aria-hidden>{icon}</span>
+        <Shimmer as="span" className="text-xs">{`${meta?.running ?? part.toolName}…`}</Shimmer>
+      </div>
+    );
+  }
+  // completed
+  if (!meta?.done) return null; // recommend_cards renders its own cards
+  return (
+    <div className="flex items-center gap-1.5 text-muted-foreground/80 text-xs">
+      <CheckIcon className="size-3 text-green-600" /> {meta.done}
+    </div>
+  );
 }
 
 function InputRequestActions({
@@ -186,7 +213,12 @@ function RecommendationCards({ part }: { readonly part: EveDynamicToolPart }) {
 
   if (!data?.cards) {
     return (
-      <div className="my-1 animate-pulse text-muted-foreground text-sm">Finding cards…</div>
+      <div className="my-1 flex items-center gap-1.5 text-sm">
+        <span aria-hidden>🃏</span>
+        <Shimmer as="span" className="text-sm">
+          Finding the best cards…
+        </Shimmer>
+      </div>
     );
   }
 
