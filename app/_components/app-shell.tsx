@@ -1,10 +1,16 @@
 "use client";
 
 import { UserButton } from "@clerk/nextjs";
-import { PlusIcon, XIcon } from "lucide-react";
+import { MoreHorizontalIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -42,7 +48,7 @@ export function AppShell({
       <ChatSidebar chats={chats} />
       <SidebarInset className="h-svh overflow-hidden">
         <header className="flex h-12 shrink-0 items-center gap-2 border-border border-b px-3">
-          <SidebarTrigger />
+          <SidebarTrigger className="md:hidden" />
           <Link className="font-medium text-sm transition-opacity hover:opacity-70" href="/">
             {AGENT_NAME}
           </Link>
@@ -101,13 +107,21 @@ function ChatSidebar({ chats }: { readonly chats: ChatSummary[] }) {
                         <span className="truncate">{chat.title || "Untitled"}</span>
                       </Link>
                     </SidebarMenuButton>
-                    <SidebarMenuAction
-                      aria-label="Delete chat"
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => deleteChat(chat.id)}
-                    >
-                      <XIcon className="size-3.5" />
-                    </SidebarMenuAction>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <SidebarMenuAction aria-label="Chat options" showOnHover>
+                          <MoreHorizontalIcon className="size-4" />
+                        </SidebarMenuAction>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" side="right">
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => deleteChat(chat.id)}
+                        >
+                          <Trash2Icon className="size-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </SidebarMenuItem>
                 ))
               )}
