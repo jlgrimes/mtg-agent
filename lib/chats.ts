@@ -12,15 +12,42 @@ export interface ChatCursor {
   streamIndex?: number;
 }
 
+// A snapshot of the deck a chat is bound to, captured at creation and never
+// changed. `id` is the Archidekt deck id (string) or null for pasted/manual
+// lists. The decklist snapshot lets the agent reason about the deck on every
+// turn without re-fetching Archidekt (and works even if it's later disconnected).
+export interface ChatDeck {
+  id: string | null;
+  name: string;
+  commanders: string[];
+  colors: string[];
+  decklistText: string;
+}
+
 export interface ChatRecord extends ChatCursor {
   id: string;
   userId: string;
   title: string;
+  deck?: ChatDeck;
   createdAt: number;
   updatedAt: number;
 }
 
-export type ChatSummary = Pick<ChatRecord, "id" | "title" | "updatedAt">;
+// Lightweight deck info carried on summaries so the sidebar can group chats by
+// deck without loading every full record's decklist.
+export type ChatDeckRef = Pick<ChatDeck, "id" | "name" | "colors">;
+export type ChatSummary = Pick<ChatRecord, "id" | "title" | "updatedAt"> & {
+  deck?: ChatDeckRef;
+};
+
+// A deck that has at least one conversation (derived from chats, not Archidekt).
+export interface DeckGroup {
+  id: string;
+  name: string;
+  colors: string[];
+  chatCount: number;
+  updatedAt: number;
+}
 
 let client: Redis | null = null;
 function redis(): Redis {
@@ -40,19 +67,78 @@ export async function listChats(userId: string): Promise<ChatSummary[]> {
   const records = await Promise.all(ids.map((id) => r.get<ChatRecord>(metaKey(id))));
   return records
     .filter((c): c is ChatRecord => !!c && c.userId === userId)
-    .map((c) => ({ id: c.id, title: c.title, updatedAt: c.updatedAt }));
+    .map((c) => ({
+      id: c.id,
+      title: c.title,
+      updatedAt: c.updatedAt,
+      deck: c.deck ? { id: c.deck.id, name: c.deck.name, colors: c.deck.colors } : undefined,
+    }));
+}
+
+/** A user's chats for one Archidekt deck (newest-updated first). */
+export async function listChatsForDeck(userId: string, deckId: string): Promise<ChatSummary[]> {
+  const chats = await listChats(userId);
+  return chats.filter((c) => c.deck?.id === deckId);
+}
+
+/**
+ * The full deck snapshot (incl. decklist) from this deck's newest chat, if any.
+ * Lets a new deck chat reuse a stored decklist when Archidekt is unreachable.
+ */
+export async function getDeckSnapshot(userId: string, deckId: string): Promise<ChatDeck | null> {
+  const chats = await listChatsForDeck(userId, deckId);
+  if (!chats.length) return null;
+  const record = await getChat(userId, chats[0].id);
+  return record?.deck ?? null;
+}
+
+/**
+ * Sidebar data: the decks the user has conversations with (grouped) plus any
+ * chats not bound to an Archidekt deck ("General"). Pasted/manual decks have a
+ * null id and fall into General since they have no deck page.
+ */
+export async function getSidebarData(
+  userId: string,
+): Promise<{ decks: DeckGroup[]; general: ChatSummary[]; chatDeckMap: Record<string, string> }> {
+  const chats = await listChats(userId); // newest-updated first
+  const byDeck = new Map<string, DeckGroup>();
+  const general: ChatSummary[] = [];
+  const chatDeckMap: Record<string, string> = {};
+  for (const c of chats) {
+    const id = c.deck?.id;
+    if (!id) {
+      general.push(c);
+      continue;
+    }
+    chatDeckMap[c.id] = id;
+    const existing = byDeck.get(id);
+    if (existing) {
+      existing.chatCount += 1;
+    } else {
+      // First occurrence is the newest chat, so it seeds the display name/colors.
+      byDeck.set(id, {
+        id,
+        name: c.deck?.name ?? "Untitled deck",
+        colors: c.deck?.colors ?? [],
+        chatCount: 1,
+        updatedAt: c.updatedAt,
+      });
+    }
+  }
+  return { decks: [...byDeck.values()], general, chatDeckMap };
 }
 
 /** Create a new chat (metadata + messages) and index it for the user. */
 export async function createChat(
   userId: string,
-  data: ChatCursor & { title: string; messages?: unknown[] },
+  data: ChatCursor & { title: string; deck?: ChatDeck; messages?: unknown[] },
 ): Promise<ChatRecord> {
   const now = Date.now();
   const record: ChatRecord = {
     id: nanoid(12),
     userId,
     title: data.title.slice(0, 120) || "New chat",
+    deck: data.deck,
     sessionId: data.sessionId,
     continuationToken: data.continuationToken,
     streamIndex: data.streamIndex,

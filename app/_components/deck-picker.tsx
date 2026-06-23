@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-interface DeckSummary {
+export interface DeckSummary {
   id: number;
   name: string;
   size: number;
@@ -11,12 +11,6 @@ interface DeckSummary {
   private: boolean;
   unlisted: boolean;
   featured: string | null;
-}
-
-export interface PickedDeck {
-  name: string;
-  decklistText: string;
-  commanders: string[];
 }
 
 const COLOR_DOT: Record<string, string> = {
@@ -41,9 +35,9 @@ function fallbackGradient(colors: string[]): string {
   return `linear-gradient(135deg, ${stops.join(", ")})`;
 }
 
-// Home-screen Archidekt deck picker: connect once, then click a deck to make it
-// the active context for the chat. Lives on the empty/home view, not the sidebar.
-export function DeckPicker({ onSelect }: { readonly onSelect: (deck: PickedDeck) => void }) {
+// Home-screen Archidekt deck picker: connect once, then click a deck to open its
+// deck page. Lives on the empty/home view, not the sidebar.
+export function DeckPicker({ onPick }: { readonly onPick: (deck: DeckSummary) => void }) {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [decks, setDecks] = useState<DeckSummary[]>([]);
@@ -118,24 +112,10 @@ export function DeckPicker({ onSelect }: { readonly onSelect: (deck: PickedDeck)
     setDecks([]);
   };
 
-  const handlePick = async (deck: DeckSummary) => {
+  const handlePick = (deck: DeckSummary) => {
     if (pickingId) return;
-    setPickingId(deck.id);
-    setError(null);
-    try {
-      const res = await fetch(`/api/archidekt/decks/${deck.id}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to load deck.");
-      onSelect({
-        name: data.name ?? deck.name,
-        decklistText: data.decklistText ?? "",
-        commanders: data.commanders ?? [],
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load deck.");
-    } finally {
-      setPickingId(null);
-    }
+    setPickingId(deck.id); // brief spinner while the deck page route loads
+    onPick(deck);
   };
 
   if (connected === null) return null;

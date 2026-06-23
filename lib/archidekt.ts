@@ -94,6 +94,51 @@ export async function archidektGet(conn: ArchidektConn, path: string): Promise<R
   return res;
 }
 
+export interface DeckDetail {
+  id: number;
+  name: string;
+  commanders: string[];
+  colors: string[];
+  totalCards: number;
+  decklistText: string;
+}
+
+/**
+ * One deck's commander(s), color identity, and a plain-text decklist ready for
+ * the agent. Returns null when Archidekt isn't connected or the fetch fails, so
+ * callers can degrade gracefully. Used by both the API route and server pages.
+ */
+export async function fetchDeckDetail(id: string): Promise<DeckDetail | null> {
+  if (!/^\d+$/.test(id)) return null;
+  const conn = await getStoredConn();
+  if (!conn) return null;
+
+  const res = await archidektGet(conn, `/decks/${id}/`);
+  if (!res.ok) return null;
+  const data = await res.json();
+
+  const entries: { qty: number; name: string; isCommander: boolean }[] = (data.cards ?? []).map(
+    (c: Record<string, unknown>) => {
+      const oracle = (c.card as Record<string, unknown>)?.oracleCard as Record<string, unknown>;
+      const categories = (c.categories as string[]) ?? [];
+      return {
+        qty: (c.quantity as number) ?? 1,
+        name: (oracle?.name as string) ?? "Unknown",
+        isCommander: categories.includes("Commander"),
+      };
+    },
+  );
+
+  return {
+    id: Number(id),
+    name: (data.name as string) ?? "Untitled deck",
+    commanders: entries.filter((e) => e.isCommander).map((e) => e.name),
+    colors: Array.isArray(data.colors) ? (data.colors as string[]) : [],
+    totalCards: entries.reduce((n, e) => n + e.qty, 0),
+    decklistText: entries.map((e) => `${e.qty} ${e.name}`).join("\n"),
+  };
+}
+
 // --- Clerk privateMetadata storage (per signed-in user) ---
 
 export async function getStoredConn(): Promise<ArchidektConn | null> {

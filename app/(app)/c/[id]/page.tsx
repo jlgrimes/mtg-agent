@@ -20,6 +20,7 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
     <ChatExperience
       key={chat.id}
       id={chat.id}
+      initialDeck={chat.deck}
       initialMessages={messages}
       initialSession={{
         sessionId: chat.sessionId,

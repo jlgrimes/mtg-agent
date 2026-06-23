@@ -36,16 +36,35 @@ interface ChatSummary {
   updatedAt: number;
 }
 
+interface DeckGroup {
+  id: string;
+  name: string;
+  colors: string[];
+  chatCount: number;
+}
+
+const COLOR_DOT: Record<string, string> = {
+  W: "bg-amber-200",
+  U: "bg-blue-400",
+  B: "bg-neutral-700",
+  R: "bg-red-500",
+  G: "bg-green-500",
+};
+
 export function AppShell({
-  chats,
+  decks,
+  general,
+  chatDeckMap,
   children,
 }: {
-  readonly chats: ChatSummary[];
+  readonly decks: DeckGroup[];
+  readonly general: ChatSummary[];
+  readonly chatDeckMap: Record<string, string>;
   readonly children: ReactNode;
 }) {
   return (
     <SidebarProvider>
-      <ChatSidebar chats={chats} />
+      <ChatSidebar chatDeckMap={chatDeckMap} decks={decks} general={general} />
       <SidebarInset className="h-svh overflow-hidden">
         <header className="flex h-12 shrink-0 items-center gap-2 border-border border-b px-3">
           <SidebarTrigger className="md:hidden" />
@@ -59,11 +78,25 @@ export function AppShell({
   );
 }
 
-function ChatSidebar({ chats }: { readonly chats: ChatSummary[] }) {
+function ChatSidebar({
+  decks,
+  general,
+  chatDeckMap,
+}: {
+  readonly decks: DeckGroup[];
+  readonly general: ChatSummary[];
+  readonly chatDeckMap: Record<string, string>;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
+
   const currentChatId = pathname.startsWith("/c/") ? pathname.slice(3) : null;
+  const currentDeckId = pathname.startsWith("/d/")
+    ? pathname.slice(3).split("/")[0]
+    : currentChatId
+      ? (chatDeckMap[currentChatId] ?? null)
+      : null;
 
   const closeOnMobile = () => {
     if (isMobile) setOpenMobile(false);
@@ -93,14 +126,44 @@ function ChatSidebar({ chats }: { readonly chats: ChatSummary[] }) {
       </SidebarHeader>
 
       <SidebarContent>
+        {decks.length > 0 ? (
+          <SidebarGroup>
+            <SidebarGroupLabel>Decks</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {decks.map((deck) => (
+                  <SidebarMenuItem key={deck.id}>
+                    <SidebarMenuButton asChild isActive={deck.id === currentDeckId}>
+                      <Link href={`/d/${deck.id}`} onClick={closeOnMobile}>
+                        <span className="flex shrink-0 gap-0.5">
+                          {(deck.colors.length ? deck.colors : ["C"]).map((c, i) => (
+                            <span
+                              className={`size-2 rounded-full ring-1 ring-border ${COLOR_DOT[c] ?? "bg-neutral-400"}`}
+                              key={`${c}-${i}`}
+                            />
+                          ))}
+                        </span>
+                        <span className="truncate">{deck.name}</span>
+                        <span className="ml-auto text-muted-foreground text-xs">{deck.chatCount}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : null}
+
         <SidebarGroup>
-          <SidebarGroupLabel>Recent</SidebarGroupLabel>
+          <SidebarGroupLabel>{decks.length > 0 ? "General" : "Recent"}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {chats.length === 0 ? (
-                <p className="px-2 py-1 text-muted-foreground text-xs">No conversations yet.</p>
+              {general.length === 0 ? (
+                <p className="px-2 py-1 text-muted-foreground text-xs">
+                  {decks.length > 0 ? "No general chats." : "No conversations yet."}
+                </p>
               ) : (
-                chats.map((chat) => (
+                general.map((chat) => (
                   <SidebarMenuItem key={chat.id}>
                     <SidebarMenuButton asChild isActive={chat.id === currentChatId}>
                       <Link href={`/c/${chat.id}`} onClick={closeOnMobile}>

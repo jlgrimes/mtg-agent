@@ -3,6 +3,7 @@
 import { useAuth } from "@clerk/nextjs";
 import { type EveMessage, useEveAgent } from "eve/react";
 import { AlertCircleIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   Conversation,
@@ -18,7 +19,7 @@ import {
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { cn } from "@/lib/utils";
 import { AgentMessage } from "./agent-message";
-import { DeckPicker, type PickedDeck } from "./deck-picker";
+import { type DeckSummary, DeckPicker } from "./deck-picker";
 import { ErrorBoundary } from "./error-boundary";
 
 export const AGENT_NAME = "Commander Copilot";
@@ -43,9 +44,20 @@ export interface ChatCursor {
   streamIndex: number;
 }
 
+// The deck a chat is bound to. `id` is the Archidekt deck id, or null for a
+// pasted/manual list. Captured once and persisted with the chat.
+export interface PickedDeck {
+  id: string | null;
+  name: string;
+  commanders: string[];
+  colors: string[];
+  decklistText: string;
+}
+
 export interface PersistPayload {
   session: ChatCursor;
   title: string;
+  deck?: PickedDeck;
   messages: unknown[];
 }
 
@@ -66,14 +78,20 @@ function messageText(message: { parts: { type: string; text?: string }[] }): str
 export function ChatView({
   initialSession,
   initialMessages,
+  initialDeck,
   onPersist,
 }: {
   readonly initialSession?: ChatCursor;
   readonly initialMessages?: readonly EveMessage[];
+  readonly initialDeck?: PickedDeck;
   readonly onPersist: (data: PersistPayload) => void;
 }) {
   const { getToken } = useAuth();
-  const [activeDeck, setActiveDeck] = useState<PickedDeck | null>(null);
+  const router = useRouter();
+  // A chat opened from a deck page arrives with its deck fixed; otherwise the
+  // deck can still be set once via paste before the first turn.
+  const deckLocked = !!initialDeck;
+  const [activeDeck, setActiveDeck] = useState<PickedDeck | null>(initialDeck ?? null);
   const [showPaste, setShowPaste] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const activeDeckRef = useRef<PickedDeck | null>(null);
@@ -84,7 +102,7 @@ export function ChatView({
   const usePastedDeck = () => {
     const text = pasteText.trim();
     if (!text) return;
-    setActiveDeck({ name: "Pasted decklist", decklistText: text, commanders: [] });
+    setActiveDeck({ id: null, name: "Pasted decklist", decklistText: text, commanders: [], colors: [] });
     setShowPaste(false);
     setPasteText("");
   };
@@ -142,6 +160,7 @@ export function ChatView({
         streamIndex: s.streamIndex,
       },
       title,
+      deck: activeDeckRef.current ?? undefined,
       messages: messages as unknown[],
     });
   }, [agent.status]);
@@ -229,13 +248,15 @@ export function ChatView({
                   <span className="text-muted-foreground"> · {activeDeck.commanders.join(" & ")}</span>
                 ) : null}
               </span>
-              <button
-                className="shrink-0 text-muted-foreground text-xs hover:text-foreground"
-                onClick={() => setActiveDeck(null)}
-                type="button"
-              >
-                Clear
-              </button>
+              {deckLocked ? null : (
+                <button
+                  className="shrink-0 text-muted-foreground text-xs hover:text-foreground"
+                  onClick={() => setActiveDeck(null)}
+                  type="button"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           ) : null}
           <PromptInput onSubmit={handleSubmit}>
@@ -261,8 +282,8 @@ export function ChatView({
             </div>
             {activeDeck ? null : (
               <div className="flex w-full flex-col items-center gap-3 pt-2">
-                <span className="text-muted-foreground text-xs">— or load a deck to analyze —</span>
-                <DeckPicker onSelect={setActiveDeck} />
+                <span className="text-muted-foreground text-xs">— or open a deck to analyze —</span>
+                <DeckPicker onPick={(deck: DeckSummary) => router.push(`/d/${deck.id}`)} />
                 {showPaste ? (
                   <div className="flex w-full max-w-md flex-col gap-2">
                     <textarea

@@ -1,6 +1,20 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { createChat, listChats } from "@/lib/chats";
+import { type ChatDeck, createChat, listChats } from "@/lib/chats";
+
+// Coerce an untrusted request body into a ChatDeck snapshot (or undefined).
+function parseDeck(raw: unknown): ChatDeck | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const d = raw as Record<string, unknown>;
+  if (typeof d.name !== "string" || typeof d.decklistText !== "string") return undefined;
+  return {
+    id: typeof d.id === "string" ? d.id : null,
+    name: d.name.slice(0, 200),
+    commanders: Array.isArray(d.commanders) ? d.commanders.map(String).slice(0, 4) : [],
+    colors: Array.isArray(d.colors) ? d.colors.map(String).slice(0, 5) : [],
+    decklistText: d.decklistText.slice(0, 20000),
+  };
+}
 
 // GET -> the signed-in user's chats (newest first).
 export async function GET() {
@@ -29,6 +43,7 @@ export async function POST(req: Request) {
   try {
     const chat = await createChat(userId, {
       title: String(body.title ?? "New chat"),
+      deck: parseDeck(body.deck),
       sessionId: String(body.sessionId),
       continuationToken: String(body.continuationToken ?? ""),
       streamIndex: typeof body.streamIndex === "number" ? body.streamIndex : undefined,
