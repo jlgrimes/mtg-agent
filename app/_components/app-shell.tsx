@@ -66,8 +66,10 @@ export function AppShell({
     <SidebarProvider>
       <ChatSidebar chatDeckMap={chatDeckMap} decks={decks} general={general} />
       <SidebarInset className="h-svh overflow-hidden">
-        <header className="flex h-12 shrink-0 items-center gap-2 border-border border-b px-3">
-          <SidebarTrigger className="md:hidden" />
+        {/* Mobile-only top bar (hamburger + name). On desktop the always-open
+            sidebar makes it redundant, so content runs full-height. */}
+        <header className="flex h-12 shrink-0 items-center gap-2 border-border border-b px-3 md:hidden">
+          <SidebarTrigger />
           <Link className="font-medium text-sm transition-opacity hover:opacity-70" href="/">
             {AGENT_NAME}
           </Link>
