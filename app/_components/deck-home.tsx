@@ -16,7 +16,7 @@ export interface DeckHeader {
   colors: string[];
   commanders: string[];
   totalCards: number | null;
-  connected: boolean;
+  hasDecklist: boolean;
 }
 
 export interface DeckChat {
@@ -71,7 +71,7 @@ export function DeckHome({ deck, chats }: { readonly deck: DeckHeader; readonly 
         <p className="text-muted-foreground text-sm">
           {deck.commanders.length ? deck.commanders.join(" & ") : "Commander deck"}
           {deck.totalCards ? ` · ${deck.totalCards} cards` : ""}
-          {deck.connected ? "" : " · offline (connect Archidekt to refresh)"}
+          {deck.hasDecklist ? "" : " · decklist not synced yet"}
         </p>
         <div>
           <Link

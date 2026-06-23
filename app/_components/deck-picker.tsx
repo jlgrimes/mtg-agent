@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 export interface DeckSummary {
-  id: number;
+  id: string;
   name: string;
   size: number;
   colors: string[];
@@ -35,14 +35,26 @@ function fallbackGradient(colors: string[]): string {
   return `linear-gradient(135deg, ${stops.join(", ")})`;
 }
 
+function syncedLabel(ts: number | null): string {
+  if (!ts) return "not synced";
+  const min = Math.round((Date.now() - ts) / 60000);
+  if (min < 1) return "synced just now";
+  if (min < 60) return `synced ${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `synced ${hr}h ago`;
+  return `synced ${Math.round(hr / 24)}d ago`;
+}
+
 // Home-screen Archidekt deck picker: connect once, then click a deck to open its
 // deck page. Lives on the empty/home view, not the sidebar.
 export function DeckPicker({ onPick }: { readonly onPick: (deck: DeckSummary) => void }) {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [decks, setDecks] = useState<DeckSummary[]>([]);
+  const [syncedAt, setSyncedAt] = useState<number | null>(null);
   const [loadingDecks, setLoadingDecks] = useState(false);
-  const [pickingId, setPickingId] = useState<number | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [pickingId, setPickingId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,20 +62,40 @@ export function DeckPicker({ onPick }: { readonly onPick: (deck: DeckSummary) =>
   const [password, setPassword] = useState("");
   const [connecting, setConnecting] = useState(false);
 
+  // Pull fresh decks from Archidekt into our store, then show them.
+  const syncNow = useCallback(async () => {
+    setSyncing(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/decks/sync", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Sync failed.");
+      setDecks(data.decks ?? []);
+      setSyncedAt(data.syncedAt ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sync failed.");
+    } finally {
+      setSyncing(false);
+    }
+  }, []);
+
+  // Decks always come from OUR store; if it's empty (first run), sync once.
   const loadDecks = useCallback(async () => {
     setLoadingDecks(true);
     setError(null);
     try {
-      const res = await fetch("/api/archidekt/decks");
+      const res = await fetch("/api/decks");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to load decks.");
       setDecks(data.decks ?? []);
+      setSyncedAt(data.syncedAt ?? null);
+      if ((data.decks ?? []).length === 0) await syncNow();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load decks.");
     } finally {
       setLoadingDecks(false);
     }
-  }, []);
+  }, [syncNow]);
 
   useEffect(() => {
     (async () => {
@@ -97,7 +129,7 @@ export function DeckPicker({ onPick }: { readonly onPick: (deck: DeckSummary) =>
       setShowForm(false);
       setIdentifier("");
       setPassword("");
-      await loadDecks();
+      await syncNow();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Connection failed.");
     } finally {
@@ -110,6 +142,7 @@ export function DeckPicker({ onPick }: { readonly onPick: (deck: DeckSummary) =>
     setConnected(false);
     setUsername(null);
     setDecks([]);
+    setSyncedAt(null);
   };
 
   const handlePick = (deck: DeckSummary) => {
@@ -178,10 +211,21 @@ export function DeckPicker({ onPick }: { readonly onPick: (deck: DeckSummary) =>
   // --- Connected: pick a deck (cover-art gallery) ---
   return (
     <div className="flex w-full flex-col items-center gap-3">
-      <div className="flex items-center gap-2 text-muted-foreground text-xs">
+      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-muted-foreground text-xs">
         <span>
           Your decks · <span className="text-foreground">{username}</span>
         </span>
+        <span aria-hidden>·</span>
+        <span>{syncedLabel(syncedAt)}</span>
+        <button
+          className="hover:text-foreground disabled:opacity-50"
+          disabled={syncing}
+          onClick={syncNow}
+          type="button"
+        >
+          {syncing ? "syncing…" : "(sync)"}
+        </button>
+        <span aria-hidden>·</span>
         <button className="hover:text-foreground" onClick={handleDisconnect} type="button">
           (disconnect)
         </button>

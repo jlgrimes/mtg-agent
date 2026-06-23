@@ -94,6 +94,48 @@ export async function archidektGet(conn: ArchidektConn, path: string): Promise<R
   return res;
 }
 
+export interface DeckSummary {
+  id: number;
+  name: string;
+  size: number;
+  colors: string[];
+  bracket: number | null;
+  updatedAt: string;
+  private: boolean;
+  unlisted: boolean;
+  featured: string | null;
+}
+
+/**
+ * The signed-in user's Commander decks (public + private), newest first.
+ * Returns null when Archidekt isn't connected or is unreachable, so callers can
+ * fall back to our own stored copy.
+ */
+export async function fetchDeckSummaries(): Promise<DeckSummary[] | null> {
+  const conn = await getStoredConn();
+  if (!conn) return null;
+
+  // deckFormat=3 is Commander/EDH. ownerUsername (not owner) actually filters;
+  // with the user's own token this also surfaces their private/unlisted decks.
+  const res = await archidektGet(
+    conn,
+    `/decks/v3/?ownerUsername=${encodeURIComponent(conn.username)}&deckFormat=3&orderBy=-updatedAt&pageSize=50`,
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  return (data.results ?? []).map((d: Record<string, unknown>) => ({
+    id: d.id as number,
+    name: (d.name as string) ?? "Untitled",
+    size: (d.size as number) ?? 0,
+    colors: (d.colors as string[]) ?? [],
+    bracket: (d.edhBracket as number) ?? null,
+    updatedAt: (d.updatedAt as string) ?? "",
+    private: Boolean(d.private),
+    unlisted: Boolean(d.unlisted),
+    featured: typeof d.featured === "string" && d.featured ? (d.featured as string) : null,
+  }));
+}
+
 export interface DeckDetail {
   id: number;
   name: string;

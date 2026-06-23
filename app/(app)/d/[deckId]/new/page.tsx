@@ -3,11 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChatExperience } from "@/app/_components/chat-experience";
 import type { PickedDeck } from "@/app/_components/chat-view";
-import { fetchDeckDetail } from "@/lib/archidekt";
 import { getDeckSnapshot } from "@/lib/chats";
+import { getDeckWithDetail } from "@/lib/decks";
 
-// A brand-new chat already bound to a deck. The deck snapshot comes from live
-// Archidekt detail when connected, otherwise from a prior chat's stored copy.
+// A brand-new chat already bound to a deck. The deck snapshot comes from our
+// store (refreshed from Archidekt as needed), falling back to a prior chat's
+// stored copy if the deck isn't in the store and Archidekt is unreachable.
 export default async function NewDeckChatPage({
   params,
 }: {
@@ -17,14 +18,14 @@ export default async function NewDeckChatPage({
   if (!userId) notFound();
 
   const { deckId } = await params;
-  const detail = await fetchDeckDetail(deckId);
-  const deck: PickedDeck | null = detail
+  const stored = await getDeckWithDetail(userId, deckId);
+  const deck: PickedDeck | null = stored?.decklistText
     ? {
         id: deckId,
-        name: detail.name,
-        commanders: detail.commanders,
-        colors: detail.colors,
-        decklistText: detail.decklistText,
+        name: stored.name,
+        commanders: stored.commanders ?? [],
+        colors: stored.colors,
+        decklistText: stored.decklistText,
       }
     : await getDeckSnapshot(userId, deckId);
 
