@@ -65,6 +65,16 @@ interface UiMessage {
 }
 
 
+// Error bodies can be whole HTML error pages (e.g. a 404 for the agent
+// routes). Show something readable instead of dumping markup into the banner.
+function friendlyError(error: Error): string {
+  const message = error.message.trim();
+  if (message.startsWith("<") || message.toLowerCase().includes("<!doctype")) {
+    return "The agent service didn’t respond (its routes returned an error page). Try again in a minute — if it persists, check the deployment.";
+  }
+  return message.length > 300 ? `${message.slice(0, 300)}…` : message;
+}
+
 function messageText(message: { parts: { type: string; text?: string }[] }): string {
   return message.parts
     .filter((p) => p.type === "text" && p.text)
@@ -214,7 +224,7 @@ export function ChatView({
     <main className="flex h-full flex-col overflow-hidden bg-background text-foreground">
       {agent.error ? (
         <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pt-2 sm:px-6">
-          <Banner description={agent.error.message} status="error" title="Request failed" />
+          <Banner description={friendlyError(agent.error)} status="error" title="Request failed" />
         </div>
       ) : null}
 
