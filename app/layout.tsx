@@ -2,7 +2,6 @@ import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -35,9 +34,7 @@ export default function RootLayout({ children }: { readonly children: ReactNode 
           hydration). */}
       <html className={cn(sans.variable, mono.variable)} data-astryx-theme="neutral" lang="en">
         <body>
-          <Providers>
-            <TooltipProvider>{children}</TooltipProvider>
-          </Providers>
+          <Providers>{children}</Providers>
         </body>
       </html>
     </ClerkProvider>

@@ -1,11 +1,18 @@
 "use client";
 
-import type { EveDynamicToolPart, EveMessage, EveMessagePart } from "eve/react";
-import { CheckIcon } from "lucide-react";
-import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
-import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
-import { Shimmer } from "@/components/ai-elements/shimmer";
 import { Button } from "@astryxdesign/core/Button";
+import { Card } from "@astryxdesign/core/Card";
+import {
+  ChatMessage,
+  ChatMessageBubble,
+  type ChatMessageSender,
+  ChatToolCalls,
+} from "@astryxdesign/core/Chat";
+import { Collapsible } from "@astryxdesign/core/Collapsible";
+import { Markdown } from "@astryxdesign/core/Markdown";
+import { Spinner } from "@astryxdesign/core/Spinner";
+import { Text } from "@astryxdesign/core/Text";
+import type { EveDynamicToolPart, EveMessage, EveMessagePart } from "eve/react";
 
 // Human-readable status for each tool, shown instead of raw tool/JSON widgets.
 const TOOL_LABELS: Record<string, { running: string; done: string; icon: string }> = {
@@ -35,57 +42,61 @@ export function AgentMessage({
   readonly message: EveMessage;
   readonly onInputResponses: (responses: readonly AgentInputResponse[]) => void | Promise<void>;
 }) {
+  const sender: ChatMessageSender = message.role === "user" ? "user" : "assistant";
   const lastTextIndex = message.parts.reduce(
     (last, part, index) => (part.type === "text" ? index : last),
     -1,
   );
 
   return (
-    <Message
-      data-optimistic={message.metadata?.optimistic ? "true" : undefined}
-      from={message.role}
-    >
-      <MessageContent>
-        {message.parts.map((part, index) => (
-          <AgentMessagePart
-            canRespond={canRespond}
-            key={partKey(part, index)}
-            onInputResponses={onInputResponses}
-            part={part}
-            showCaret={isStreaming && message.role === "assistant" && index === lastTextIndex}
-          />
-        ))}
-      </MessageContent>
-    </Message>
+    <ChatMessage sender={sender}>
+      {message.parts.map((part, index) => (
+        <AgentMessagePart
+          canRespond={canRespond}
+          isStreaming={
+            isStreaming && sender === "assistant" && part.type === "text" && index === lastTextIndex
+          }
+          key={partKey(part, index)}
+          onInputResponses={onInputResponses}
+          part={part}
+          sender={sender}
+        />
+      ))}
+    </ChatMessage>
   );
 }
 
 function AgentMessagePart({
   canRespond,
+  isStreaming,
   onInputResponses,
   part,
-  showCaret,
+  sender,
 }: {
   readonly canRespond: boolean;
+  readonly isStreaming: boolean;
   readonly onInputResponses: (responses: readonly AgentInputResponse[]) => void | Promise<void>;
   readonly part: EveMessagePart;
-  readonly showCaret: boolean;
+  readonly sender: ChatMessageSender;
 }) {
   switch (part.type) {
     case "step-start":
       return null;
     case "text":
+      // Users get a filled bubble; assistant prose renders as a ghost bubble
+      // so markdown (tables, code blocks) isn't boxed in.
       return (
-        <MessageResponse caret="block" isAnimating={showCaret}>
-          {part.text}
-        </MessageResponse>
+        <ChatMessageBubble variant={sender === "user" ? "filled" : "ghost"}>
+          <Markdown isStreaming={isStreaming}>{part.text}</Markdown>
+        </ChatMessageBubble>
       );
     case "reasoning":
       return (
-        <Reasoning defaultOpen isStreaming={part.state === "streaming"}>
-          <ReasoningTrigger />
-          <ReasoningContent>{part.text}</ReasoningContent>
-        </Reasoning>
+        <Collapsible trigger={part.state === "streaming" ? "Thinking…" : "Thought process"}>
+          <Text as="div" color="secondary" size="sm">
+            <Markdown isStreaming={part.state === "streaming"}>{part.text}</Markdown>
+          </Text>
+        </Collapsible>
       );
     case "dynamic-tool":
       // A pending human-in-the-loop question/approval rides on the tool part.
@@ -110,29 +121,22 @@ function ToolStatus({ part }: { readonly part: EveDynamicToolPart }) {
   const meta = TOOL_LABELS[part.toolName];
   const running = part.state === "input-available" || part.state === "input-streaming";
   const errored = part.state === "output-error" || part.state === "output-denied";
-  const icon = meta?.icon ?? "🔧";
 
-  if (errored) {
-    return (
-      <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-        <span aria-hidden>⚠</span> {meta?.done ?? part.toolName} — couldn’t complete
-      </div>
-    );
-  }
-  if (running) {
-    return (
-      <div className="flex items-center gap-1.5 text-xs">
-        <span aria-hidden>{icon}</span>
-        <Shimmer as="span" className="text-xs">{`${meta?.running ?? part.toolName}…`}</Shimmer>
-      </div>
-    );
-  }
-  // completed
-  if (!meta?.done) return null; // recommend_cards renders its own cards
+  // recommend_cards renders its own cards once complete.
+  if (!(running || errored) && !meta?.done) return null;
+
+  const label = running ? (meta?.running ?? part.toolName) : (meta?.done ?? part.toolName);
   return (
-    <div className="flex items-center gap-1.5 text-muted-foreground/80 text-xs">
-      <CheckIcon className="size-3 text-green-600" /> {meta.done}
-    </div>
+    <ChatToolCalls
+      calls={[
+        {
+          key: part.toolCallId,
+          name: label,
+          status: errored ? "error" : running ? "running" : "complete",
+          errorMessage: errored ? "Couldn’t complete" : undefined,
+        },
+      ]}
+    />
   );
 }
 
@@ -156,34 +160,38 @@ function InputRequestActions({
   );
 
   return (
-    <div className="space-y-3 rounded-md border border-yellow-500/30 bg-yellow-500/5 p-3">
-      <p className="text-muted-foreground text-sm">{inputRequest.prompt}</p>
-      {inputResponse ? (
-        <p className="font-medium text-sm">
-          Responded: {selectedOption?.label ?? inputResponse.text ?? inputResponse.optionId}
-        </p>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {inputRequest.options?.map((option) => (
-            <Button
-              isDisabled={!canRespond}
-              key={option.id}
-              label={option.label}
-              onClick={() => {
-                void onInputResponses([
-                  {
-                    optionId: option.id,
-                    requestId: inputRequest.requestId,
-                  },
-                ]);
-              }}
-              size="sm"
-              variant={option.style === "danger" ? "destructive" : "secondary"}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    <Card padding={3} variant="yellow">
+      <div className="space-y-3">
+        <Text as="p" color="secondary" size="sm">
+          {inputRequest.prompt}
+        </Text>
+        {inputResponse ? (
+          <Text as="p" size="sm" weight="medium">
+            Responded: {selectedOption?.label ?? inputResponse.text ?? inputResponse.optionId}
+          </Text>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {inputRequest.options?.map((option) => (
+              <Button
+                isDisabled={!canRespond}
+                key={option.id}
+                label={option.label}
+                onClick={() => {
+                  void onInputResponses([
+                    {
+                      optionId: option.id,
+                      requestId: inputRequest.requestId,
+                    },
+                  ]);
+                }}
+                size="sm"
+                variant={option.style === "danger" ? "destructive" : "secondary"}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -211,19 +219,20 @@ function RecommendationCards({ part }: { readonly part: EveDynamicToolPart }) {
 
   if (!data?.cards) {
     return (
-      <div className="my-1 flex items-center gap-1.5 text-sm">
-        <span aria-hidden>🃏</span>
-        <Shimmer as="span" className="text-sm">
-          Finding the best cards…
-        </Shimmer>
+      <div className="my-1">
+        <Spinner label="Finding the best cards…" size="sm" />
       </div>
     );
   }
 
   return (
     <div className="my-1 flex flex-col gap-2">
-      {data.intro ? <p className="text-sm">{data.intro}</p> : null}
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      {data.intro ? (
+        <Text as="p" size="sm">
+          {data.intro}
+        </Text>
+      ) : null}
+      <Card padding={0}>
         {data.cards.map((card) => (
           <div
             className="flex items-center gap-3 border-border border-t px-3 py-2.5 first:border-t-0"
@@ -262,19 +271,18 @@ function RecommendationCards({ part }: { readonly part: EveDynamicToolPart }) {
                 </span>
               ) : null}
               {card.buyUrl ? (
-                <a
-                  className="rounded-md bg-foreground px-2 py-0.5 font-medium text-[11px] text-background transition-opacity hover:opacity-90"
+                <Button
                   href={card.buyUrl}
+                  label="Buy"
                   rel="noreferrer"
+                  size="sm"
                   target="_blank"
-                >
-                  Buy →
-                </a>
+                />
               ) : null}
             </div>
           </div>
         ))}
-      </div>
+      </Card>
     </div>
   );
 }

@@ -16,7 +16,6 @@
 @import "tailwindcss/utilities.css" layer(utilities);
 
 @custom-variant dark (&:is(.dark *));
-@source "../node_modules/streamdown/dist/*.js";
 
 @theme inline {
   --color-background: var(--background);

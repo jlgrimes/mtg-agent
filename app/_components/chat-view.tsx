@@ -2,24 +2,20 @@
 
 import { Banner } from "@astryxdesign/core/Banner";
 import { Button } from "@astryxdesign/core/Button";
+import {
+  ChatComposer,
+  ChatComposerDrawer,
+  ChatLayout,
+  ChatMessage,
+  ChatMessageList,
+} from "@astryxdesign/core/Chat";
+import { Spinner } from "@astryxdesign/core/Spinner";
+import { Text } from "@astryxdesign/core/Text";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { useAuth } from "@clerk/nextjs";
 import { type EveMessage, useEveAgent } from "eve/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import {
-  Conversation,
-  ConversationContent,
-  ConversationScrollButton,
-} from "@/components/ai-elements/conversation";
-import {
-  PromptInput,
-  type PromptInputMessage,
-  PromptInputSubmit,
-  PromptInputTextarea,
-} from "@/components/ai-elements/prompt-input";
-import { Shimmer } from "@/components/ai-elements/shimmer";
-import { cn } from "@/lib/utils";
 import { AgentMessage } from "./agent-message";
 import { type DeckSummary, DeckPicker } from "./deck-picker";
 import { ErrorBoundary } from "./error-boundary";
@@ -167,19 +163,55 @@ export function ChatView({
     });
   }, [agent.status]);
 
-  const handleSubmit = async (message: PromptInputMessage) => {
-    const text = message.text.trim();
+  const handleSubmit = (value: string) => {
+    const text = value.trim();
     if (!text || isBusy) return;
-    await agent.send({ message: text });
+    void agent.send({ message: text });
   };
 
   const placeholder = activeDeck
     ? `Ask anything about "${activeDeck.name}" — cuts, curve, upgrades…`
     : "Ask about your Commander deck — upgrades, mana curve, card ideas…";
 
+  // The bound deck rides in the composer drawer so it's visible right above
+  // the input, in both the empty hero and the running conversation.
+  const composer = (
+    <ChatComposer
+      drawer={
+        activeDeck ? (
+          <ChatComposerDrawer label="Context">
+            <div className="flex w-full items-center gap-2 text-sm">
+              <span aria-hidden>📋</span>
+              <span className="min-w-0 flex-1 truncate">
+                Active deck: <span className="font-medium">{activeDeck.name}</span>
+                {activeDeck.commanders.length ? (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {activeDeck.commanders.join(" & ")}
+                  </span>
+                ) : null}
+              </span>
+              {deckLocked ? null : (
+                <Button
+                  label="Clear"
+                  onClick={() => setActiveDeck(null)}
+                  size="sm"
+                  variant="ghost"
+                />
+              )}
+            </div>
+          </ChatComposerDrawer>
+        ) : undefined
+      }
+      isStopShown={isBusy}
+      onStop={agent.stop}
+      onSubmit={handleSubmit}
+      placeholder={placeholder}
+    />
+  );
+
   return (
     <main className="flex h-full flex-col overflow-hidden bg-background text-foreground">
-
       {agent.error ? (
         <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pt-2 sm:px-6">
           <Banner description={agent.error.message} status="error" title="Request failed" />
@@ -194,8 +226,8 @@ export function ChatView({
             </div>
           }
         >
-          <Conversation className="min-h-0 flex-1">
-            <ConversationContent className="mx-auto w-full max-w-3xl gap-6 px-4 py-6 sm:px-6">
+          <ChatLayout className="min-h-0 flex-1" composer={composer}>
+            <ChatMessageList>
               {allMessages.map((message, index) => (
                 <AgentMessage
                   canRespond={!isBusy}
@@ -206,74 +238,37 @@ export function ChatView({
                 />
               ))}
               {agent.status === "submitted" ? (
-                <div className="flex items-center gap-1.5 text-sm">
-                  <span aria-hidden>✦</span>
-                  <Shimmer as="span" className="text-sm">
-                    Thinking…
-                  </Shimmer>
-                </div>
+                <ChatMessage sender="assistant">
+                  <Spinner label="Thinking…" size="sm" />
+                </ChatMessage>
               ) : null}
-            </ConversationContent>
-            <ConversationScrollButton />
-          </Conversation>
+            </ChatMessageList>
+          </ChatLayout>
         </ErrorBoundary>
       )}
 
-      <div
-        className={cn(
-          "mx-auto w-full px-4 sm:px-6",
-          isEmpty
-            ? "flex max-w-2xl flex-1 flex-col items-center justify-center gap-6 pb-[8vh]"
-            : "max-w-3xl shrink-0 pb-6",
-        )}
-      >
-        {isEmpty ? (
+      {isEmpty ? (
+        <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-6 px-4 pb-[8vh] sm:px-6">
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="font-medium text-4xl tracking-tighter sm:text-5xl">{AGENT_NAME}</h1>
-            <p className="text-muted-foreground text-sm">{AGENT_TAGLINE}</p>
+            <Text color="secondary" size="sm">
+              {AGENT_TAGLINE}
+            </Text>
           </div>
-        ) : null}
 
-        <div className={cn("w-full", isEmpty && "mx-auto max-w-xl")}>
-          {activeDeck ? (
-            <div className="mb-2 flex w-full items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
-              <span aria-hidden>📋</span>
-              <span className="min-w-0 flex-1 truncate">
-                Active deck: <span className="font-medium">{activeDeck.name}</span>
-                {activeDeck.commanders.length ? (
-                  <span className="text-muted-foreground"> · {activeDeck.commanders.join(" & ")}</span>
-                ) : null}
-              </span>
-              {deckLocked ? null : (
-                <Button
-                  label="Clear"
-                  onClick={() => setActiveDeck(null)}
-                  size="sm"
-                  variant="ghost"
-                />
-              )}
-            </div>
-          ) : null}
-          <PromptInput onSubmit={handleSubmit}>
-            <PromptInputTextarea placeholder={placeholder} />
-            <PromptInputSubmit onStop={agent.stop} status={agent.status} />
-          </PromptInput>
-        </div>
-
-        {isEmpty ? (
-          <>
-            <div className="flex w-full flex-wrap justify-center gap-2">
+          <div className="mx-auto w-full max-w-xl">{composer}</div>
+          <div className="flex w-full flex-wrap justify-center gap-2">
               {(activeDeck ? DECK_STARTERS : STARTER_PROMPTS).map((prompt) => (
                 <Button
                   isDisabled={isBusy}
                   key={prompt}
                   label={prompt}
                   onClick={() => agent.send({ message: prompt })}
-                  size="sm"
-                />
-              ))}
-            </div>
-            {activeDeck ? null : (
+                size="sm"
+              />
+            ))}
+          </div>
+          {activeDeck ? null : (
               <div className="flex w-full flex-col items-center gap-3 pt-2">
                 <span className="text-muted-foreground text-xs">— or open a deck to analyze —</span>
                 <DeckPicker onPick={(deck: DeckSummary) => router.push(`/d/${deck.id}`)} />
@@ -307,11 +302,10 @@ export function ChatView({
                     variant="ghost"
                   />
                 )}
-              </div>
-            )}
-          </>
-        ) : null}
-      </div>
+            </div>
+          )}
+        </div>
+      ) : null}
     </main>
   );
 }
