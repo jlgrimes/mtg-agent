@@ -8,8 +8,10 @@ import { getChat, getChatMessages } from "@/lib/chats";
 // conversation paints immediately (no client fetch waterfall) and the URL is
 // shareable/refreshable.
 export default async function ChatPage({ params }: { params: Promise<{ id: string }> }) {
+  // Signed out: render nothing — the (app) layout shows the sign-in landing,
+  // and notFound() here would override it with a 404.
   const { userId } = await auth();
-  if (!userId) notFound();
+  if (!userId) return null;
 
   const { id } = await params;
   const chat = await getChat(userId, id);

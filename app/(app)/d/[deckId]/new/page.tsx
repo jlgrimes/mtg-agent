@@ -1,6 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { ChatExperience } from "@/app/_components/chat-experience";
 import type { PickedDeck } from "@/app/_components/chat-view";
 import { getDeckSnapshot } from "@/lib/chats";
@@ -14,8 +13,10 @@ export default async function NewDeckChatPage({
 }: {
   params: Promise<{ deckId: string }>;
 }) {
+  // Signed out: render nothing — the (app) layout shows the sign-in landing,
+  // and notFound() here would override it with a 404.
   const { userId } = await auth();
-  if (!userId) notFound();
+  if (!userId) return null;
 
   const { deckId } = await params;
   const stored = await getDeckWithDetail(userId, deckId);

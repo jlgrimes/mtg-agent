@@ -8,8 +8,10 @@ import { getDeckWithDetail } from "@/lib/decks";
 // a TTL) plus the conversations bound to it. Falls back to the cached deck info
 // from existing chats if the deck isn't in the store yet.
 export default async function DeckPage({ params }: { params: Promise<{ deckId: string }> }) {
+  // Signed out: render nothing — the (app) layout shows the sign-in landing,
+  // and notFound() here would override it with a 404.
   const { userId } = await auth();
-  if (!userId) notFound();
+  if (!userId) return null;
 
   const { deckId } = await params;
   const [deck, chats] = await Promise.all([
