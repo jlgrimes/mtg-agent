@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const sans = Geist({
@@ -29,9 +30,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { readonly children: ReactNode }) {
   return (
     <ClerkProvider>
-      <html className={cn(sans.variable, mono.variable)} lang="en">
+      {/* data-astryx-theme is set server-side so the theme's scoped CSS
+          applies on first paint (the Theme provider re-syncs it after
+          hydration). */}
+      <html className={cn(sans.variable, mono.variable)} data-astryx-theme="neutral" lang="en">
         <body>
-          <TooltipProvider>{children}</TooltipProvider>
+          <Providers>
+            <TooltipProvider>{children}</TooltipProvider>
+          </Providers>
         </body>
       </html>
     </ClerkProvider>

@@ -1,8 +1,10 @@
 "use client";
 
+import { Banner } from "@astryxdesign/core/Banner";
+import { Button } from "@astryxdesign/core/Button";
+import { TextArea } from "@astryxdesign/core/TextArea";
 import { useAuth } from "@clerk/nextjs";
 import { type EveMessage, useEveAgent } from "eve/react";
-import { AlertCircleIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -180,13 +182,7 @@ export function ChatView({
 
       {agent.error ? (
         <div className="mx-auto w-full max-w-3xl shrink-0 px-4 pt-2 sm:px-6">
-          <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm">
-            <AlertCircleIcon className="mt-0.5 size-4 shrink-0 text-destructive" />
-            <div>
-              <p className="font-medium">Request failed</p>
-              <p className="mt-0.5 text-muted-foreground">{agent.error.message}</p>
-            </div>
-          </div>
+          <Banner description={agent.error.message} status="error" title="Request failed" />
         </div>
       ) : null}
 
@@ -249,13 +245,12 @@ export function ChatView({
                 ) : null}
               </span>
               {deckLocked ? null : (
-                <button
-                  className="shrink-0 text-muted-foreground text-xs hover:text-foreground"
+                <Button
+                  label="Clear"
                   onClick={() => setActiveDeck(null)}
-                  type="button"
-                >
-                  Clear
-                </button>
+                  size="sm"
+                  variant="ghost"
+                />
               )}
             </div>
           ) : null}
@@ -269,15 +264,13 @@ export function ChatView({
           <>
             <div className="flex w-full flex-wrap justify-center gap-2">
               {(activeDeck ? DECK_STARTERS : STARTER_PROMPTS).map((prompt) => (
-                <button
-                  className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-left text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
-                  disabled={isBusy}
+                <Button
+                  isDisabled={isBusy}
                   key={prompt}
+                  label={prompt}
                   onClick={() => agent.send({ message: prompt })}
-                  type="button"
-                >
-                  {prompt}
-                </button>
+                  size="sm"
+                />
               ))}
             </div>
             {activeDeck ? null : (
@@ -286,39 +279,33 @@ export function ChatView({
                 <DeckPicker onPick={(deck: DeckSummary) => router.push(`/d/${deck.id}`)} />
                 {showPaste ? (
                   <div className="flex w-full max-w-md flex-col gap-2">
-                    <textarea
-                      autoFocus
-                      className="h-32 w-full resize-none rounded-lg border border-border bg-background p-3 text-sm outline-none focus:border-foreground/40"
-                      onChange={(e) => setPasteText(e.target.value)}
+                    <TextArea
+                      hasAutoFocus
+                      isLabelHidden
+                      label="Decklist"
+                      onChange={setPasteText}
                       placeholder={"Paste a decklist from Moxfield, Archidekt, MTGGoldfish…\n1 Sol Ring\n1 Arcane Signet\n…"}
+                      rows={6}
                       value={pasteText}
                     />
                     <div className="flex justify-center gap-2">
-                      <button
-                        className="rounded-md bg-foreground px-4 py-1.5 font-medium text-background text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
-                        disabled={!pasteText.trim()}
+                      <Button
+                        isDisabled={!pasteText.trim()}
+                        label="Use this deck"
                         onClick={usePastedDeck}
-                        type="button"
-                      >
-                        Use this deck
-                      </button>
-                      <button
-                        className="px-3 py-1.5 text-muted-foreground text-sm hover:text-foreground"
-                        onClick={() => setShowPaste(false)}
-                        type="button"
-                      >
-                        Cancel
-                      </button>
+                        variant="primary"
+                      />
+                      <Button label="Cancel" onClick={() => setShowPaste(false)} variant="ghost" />
                     </div>
                   </div>
                 ) : (
-                  <button
-                    className="text-muted-foreground text-xs underline-offset-2 hover:text-foreground hover:underline"
+                  <Button
+                    icon={<span aria-hidden>📋</span>}
+                    label="or paste a decklist (Moxfield, etc.)"
                     onClick={() => setShowPaste(true)}
-                    type="button"
-                  >
-                    📋 or paste a decklist (Moxfield, etc.)
-                  </button>
+                    size="sm"
+                    variant="ghost"
+                  />
                 )}
               </div>
             )}

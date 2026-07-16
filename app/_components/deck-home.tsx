@@ -1,14 +1,13 @@
 "use client";
 
-import { MoreHorizontalIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { Button } from "@astryxdesign/core/Button";
+import { EmptyState } from "@astryxdesign/core/EmptyState";
+import { MoreMenu } from "@astryxdesign/core/MoreMenu";
+import { Text } from "@astryxdesign/core/Text";
+import { Timestamp } from "@astryxdesign/core/Timestamp";
+import { PlusIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 export interface DeckHeader {
   id: string;
@@ -32,17 +31,6 @@ const COLOR_DOT: Record<string, string> = {
   R: "bg-red-500",
   G: "bg-green-500",
 };
-
-function relativeTime(ts: number): string {
-  const diff = Date.now() - ts;
-  const min = Math.round(diff / 60000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const day = Math.round(hr / 24);
-  return `${day}d ago`;
-}
 
 // A deck's "project" page: deck header, a button to start a new chat bound to
 // this deck, and the list of conversations already in it.
@@ -68,18 +56,18 @@ export function DeckHome({ deck, chats }: { readonly deck: DeckHeader; readonly 
           </div>
           <h1 className="font-semibold text-2xl tracking-tight">{deck.name}</h1>
         </div>
-        <p className="text-muted-foreground text-sm">
+        <Text color="secondary" size="sm">
           {deck.commanders.length ? deck.commanders.join(" & ") : "Commander deck"}
           {deck.totalCards ? ` · ${deck.totalCards} cards` : ""}
           {deck.hasDecklist ? "" : " · decklist not synced yet"}
-        </p>
+        </Text>
         <div>
-          <Link
-            className="inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 font-medium text-background text-sm transition-opacity hover:opacity-90"
+          <Button
             href={`/d/${deck.id}/new`}
-          >
-            <PlusIcon className="size-4" /> New chat
-          </Link>
+            icon={<PlusIcon className="size-4" />}
+            label="New chat"
+            variant="primary"
+          />
         </div>
       </header>
 
@@ -88,36 +76,31 @@ export function DeckHome({ deck, chats }: { readonly deck: DeckHeader; readonly 
           Conversations
         </h2>
         {chats.length === 0 ? (
-          <p className="rounded-lg border border-border border-dashed px-4 py-6 text-center text-muted-foreground text-sm">
-            No conversations yet. Start one to analyze, tune, or theorycraft this deck.
-          </p>
+          <EmptyState
+            description="Start one to analyze, tune, or theorycraft this deck."
+            title="No conversations yet"
+          />
         ) : (
           <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
             {chats.map((chat) => (
-              <li className="group flex items-center gap-2 px-3 py-2.5" key={chat.id}>
+              <li className="flex items-center gap-2 px-3 py-2.5" key={chat.id}>
                 <Link className="min-w-0 flex-1" href={`/c/${chat.id}`}>
                   <span className="block truncate text-sm">{chat.title || "Untitled"}</span>
-                  <span className="text-muted-foreground text-xs">{relativeTime(chat.updatedAt)}</span>
+                  <Text color="secondary" size="xsm">
+                    <Timestamp format="relative" value={chat.updatedAt} />
+                  </Text>
                 </Link>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      aria-label="Chat options"
-                      className="shrink-0 rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100"
-                      type="button"
-                    >
-                      <MoreHorizontalIcon className="size-4" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => deleteChat(chat.id)}
-                    >
-                      <Trash2Icon className="size-4" /> Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <MoreMenu
+                  items={[
+                    {
+                      label: "Delete",
+                      icon: <Trash2Icon className="size-4" />,
+                      onClick: () => deleteChat(chat.id),
+                    },
+                  ]}
+                  label="Chat options"
+                  size="sm"
+                />
               </li>
             ))}
           </ul>

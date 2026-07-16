@@ -1,5 +1,9 @@
 "use client";
 
+import { Button } from "@astryxdesign/core/Button";
+import { Spinner } from "@astryxdesign/core/Spinner";
+import { Text } from "@astryxdesign/core/Text";
+import { TextInput } from "@astryxdesign/core/TextInput";
 import { useCallback, useEffect, useState } from "react";
 
 export interface DeckSummary {
@@ -163,46 +167,45 @@ export function DeckPicker({ onPick }: { readonly onPick: (deck: DeckSummary) =>
               Connect Archidekt to browse and analyze your decks (private ones included). Your
               password is used once to get a token and is never stored.
             </p>
-            <input
-              autoComplete="username"
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40"
-              onChange={(e) => setIdentifier(e.target.value)}
+            <TextInput
+              htmlName="username"
+              isLabelHidden
+              label="Archidekt username or email"
+              onChange={setIdentifier}
               placeholder="Archidekt username or email"
-              type="text"
               value={identifier}
             />
-            <input
-              autoComplete="current-password"
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40"
-              onChange={(e) => setPassword(e.target.value)}
+            <TextInput
+              htmlName="password"
+              isLabelHidden
+              label="Password"
+              onChange={setPassword}
               placeholder="Password"
               type="password"
               value={password}
             />
-            <button
-              className="rounded-md bg-foreground px-3 py-2 font-medium text-background text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
-              disabled={connecting || !identifier || !password}
+            <Button
+              isDisabled={!identifier || !password}
+              isLoading={connecting}
+              label={connecting ? "Connecting…" : "Connect"}
               type="submit"
-            >
-              {connecting ? "Connecting…" : "Connect"}
-            </button>
-            <button
-              className="text-muted-foreground text-xs hover:text-foreground"
-              onClick={() => setShowForm(false)}
-              type="button"
-            >
-              Cancel
-            </button>
-            {error ? <p className="text-center text-destructive text-xs">{error}</p> : null}
+              variant="primary"
+            />
+            <Button label="Cancel" onClick={() => setShowForm(false)} size="sm" variant="ghost" />
+            {error ? (
+              <div className="text-center">
+                <Text color="inherit" size="xsm">
+                  <span className="text-destructive">{error}</span>
+                </Text>
+              </div>
+            ) : null}
           </form>
         ) : (
-          <button
-            className="rounded-full border border-border px-4 py-1.5 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
+          <Button
+            icon={<span aria-hidden>🔗</span>}
+            label="Connect Archidekt to load your decks"
             onClick={() => setShowForm(true)}
-            type="button"
-          >
-            🔗 Connect Archidekt to load your decks
-          </button>
+          />
         )}
       </div>
     );
@@ -217,22 +220,18 @@ export function DeckPicker({ onPick }: { readonly onPick: (deck: DeckSummary) =>
         </span>
         <span aria-hidden>·</span>
         <span>{syncedLabel(syncedAt)}</span>
-        <button
-          className="hover:text-foreground disabled:opacity-50"
-          disabled={syncing}
+        <Button
+          isDisabled={syncing}
+          label={syncing ? "syncing…" : "sync"}
           onClick={syncNow}
-          type="button"
-        >
-          {syncing ? "syncing…" : "(sync)"}
-        </button>
-        <span aria-hidden>·</span>
-        <button className="hover:text-foreground" onClick={handleDisconnect} type="button">
-          (disconnect)
-        </button>
+          size="sm"
+          variant="ghost"
+        />
+        <Button label="disconnect" onClick={handleDisconnect} size="sm" variant="ghost" />
       </div>
 
       {loadingDecks ? (
-        <p className="text-muted-foreground text-xs">Loading decks…</p>
+        <Spinner label="Loading decks…" size="sm" />
       ) : error ? (
         <p className="text-destructive text-xs">{error}</p>
       ) : decks.length === 0 ? (
@@ -284,8 +283,8 @@ export function DeckPicker({ onPick }: { readonly onPick: (deck: DeckSummary) =>
                 </span>
               </span>
               {pickingId === deck.id ? (
-                <span className="absolute inset-0 grid place-items-center bg-black/40 text-white text-xs">
-                  Loading…
+                <span className="absolute inset-0 grid place-items-center bg-black/40">
+                  <Spinner aria-label="Opening deck" shade="onMedia" size="sm" />
                 </span>
               ) : null}
             </button>

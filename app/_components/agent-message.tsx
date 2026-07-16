@@ -5,7 +5,7 @@ import { CheckIcon } from "lucide-react";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
 import { Shimmer } from "@/components/ai-elements/shimmer";
-import { Button } from "@/components/ui/button";
+import { Button } from "@astryxdesign/core/Button";
 
 // Human-readable status for each tool, shown instead of raw tool/JSON widgets.
 const TOOL_LABELS: Record<string, { running: string; done: string; icon: string }> = {
@@ -166,8 +166,9 @@ function InputRequestActions({
         <div className="flex flex-wrap gap-2">
           {inputRequest.options?.map((option) => (
             <Button
-              disabled={!canRespond}
+              isDisabled={!canRespond}
               key={option.id}
+              label={option.label}
               onClick={() => {
                 void onInputResponses([
                   {
@@ -177,11 +178,8 @@ function InputRequestActions({
                 ]);
               }}
               size="sm"
-              type="button"
-              variant={option.style === "danger" ? "destructive" : "default"}
-            >
-              {option.label}
-            </Button>
+              variant={option.style === "danger" ? "destructive" : "secondary"}
+            />
           ))}
         </div>
       )}

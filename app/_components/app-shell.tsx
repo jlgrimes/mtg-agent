@@ -1,33 +1,20 @@
 "use client";
 
+import { AppShell as AstryxAppShell, useAppShellMobile } from "@astryxdesign/core/AppShell";
+import { Badge } from "@astryxdesign/core/Badge";
+import { Button } from "@astryxdesign/core/Button";
+import { MoreMenu } from "@astryxdesign/core/MoreMenu";
+import {
+  SideNav,
+  SideNavHeading,
+  SideNavItem,
+  SideNavSection,
+} from "@astryxdesign/core/SideNav";
+import { Text } from "@astryxdesign/core/Text";
 import { UserButton } from "@clerk/nextjs";
-import { MoreHorizontalIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import Link from "next/link";
+import { PlusIcon, Trash2Icon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuAction,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
-} from "@/components/ui/sidebar";
 import { AGENT_NAME } from "./chat-view";
 
 interface ChatSummary {
@@ -63,24 +50,29 @@ export function AppShell({
   readonly children: ReactNode;
 }) {
   return (
-    <SidebarProvider>
-      <ChatSidebar chatDeckMap={chatDeckMap} decks={decks} general={general} />
-      <SidebarInset className="h-svh overflow-hidden">
-        {/* Mobile-only top bar (hamburger + name). On desktop the always-open
-            sidebar makes it redundant, so content runs full-height. */}
-        <header className="flex h-12 shrink-0 items-center gap-2 border-border border-b px-3 md:hidden">
-          <SidebarTrigger />
-          <Link className="font-medium text-sm transition-opacity hover:opacity-70" href="/">
-            {AGENT_NAME}
-          </Link>
-        </header>
-        <div className="relative min-h-0 flex-1">{children}</div>
-      </SidebarInset>
-    </SidebarProvider>
+    <AstryxAppShell
+      height="fill"
+      sideNav={<ChatSideNav chatDeckMap={chatDeckMap} decks={decks} general={general} />}
+    >
+      <div className="relative h-full min-h-0 overflow-hidden">{children}</div>
+    </AstryxAppShell>
   );
 }
 
-function ChatSidebar({
+function ColorDots({ colors }: { readonly colors: string[] }) {
+  return (
+    <span className="flex shrink-0 gap-0.5">
+      {(colors.length ? colors : ["C"]).map((c, i) => (
+        <span
+          className={`size-2 rounded-full ring-1 ring-border ${COLOR_DOT[c] ?? "bg-neutral-400"}`}
+          key={`${c}-${i}`}
+        />
+      ))}
+    </span>
+  );
+}
+
+function ChatSideNav({
   decks,
   general,
   chatDeckMap,
@@ -91,7 +83,7 @@ function ChatSidebar({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { closeMobileNav } = useAppShellMobile();
 
   const currentChatId = pathname.startsWith("/c/") ? pathname.slice(3) : null;
   const currentDeckId = pathname.startsWith("/d/")
@@ -100,10 +92,6 @@ function ChatSidebar({
       ? (chatDeckMap[currentChatId] ?? null)
       : null;
 
-  const closeOnMobile = () => {
-    if (isMobile) setOpenMobile(false);
-  };
-
   const deleteChat = async (id: string) => {
     await fetch(`/api/chats/${id}`, { method: "DELETE" });
     if (id === currentChatId) router.push("/");
@@ -111,96 +99,74 @@ function ChatSidebar({
   };
 
   return (
-    <Sidebar>
-      <SidebarHeader className="gap-2">
-        <Link
-          className="px-1 text-left font-semibold text-sm transition-opacity hover:opacity-70"
-          href="/"
-          onClick={closeOnMobile}
-        >
-          Commander <span className="font-normal text-muted-foreground">Copilot</span>
-        </Link>
-        <SidebarMenuButton asChild className="border border-border">
-          <Link href="/" onClick={closeOnMobile}>
-            <PlusIcon className="size-4" /> New chat
-          </Link>
-        </SidebarMenuButton>
-      </SidebarHeader>
-
-      <SidebarContent>
-        {decks.length > 0 ? (
-          <SidebarGroup>
-            <SidebarGroupLabel>Decks</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {decks.map((deck) => (
-                  <SidebarMenuItem key={deck.id}>
-                    <SidebarMenuButton asChild isActive={deck.id === currentDeckId}>
-                      <Link href={`/d/${deck.id}`} onClick={closeOnMobile}>
-                        <span className="flex shrink-0 gap-0.5">
-                          {(deck.colors.length ? deck.colors : ["C"]).map((c, i) => (
-                            <span
-                              className={`size-2 rounded-full ring-1 ring-border ${COLOR_DOT[c] ?? "bg-neutral-400"}`}
-                              key={`${c}-${i}`}
-                            />
-                          ))}
-                        </span>
-                        <span className="truncate">{deck.name}</span>
-                        <span className="ml-auto text-muted-foreground text-xs">{deck.chatCount}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ) : null}
-
-        <SidebarGroup>
-          <SidebarGroupLabel>{decks.length > 0 ? "General" : "Recent"}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {general.length === 0 ? (
-                <p className="px-2 py-1 text-muted-foreground text-xs">
-                  {decks.length > 0 ? "No general chats." : "No conversations yet."}
-                </p>
-              ) : (
-                general.map((chat) => (
-                  <SidebarMenuItem key={chat.id}>
-                    <SidebarMenuButton asChild isActive={chat.id === currentChatId}>
-                      <Link href={`/c/${chat.id}`} onClick={closeOnMobile}>
-                        <span className="truncate">{chat.title || "Untitled"}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <SidebarMenuAction aria-label="Chat options" showOnHover>
-                          <MoreHorizontalIcon className="size-4" />
-                        </SidebarMenuAction>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" side="right">
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() => deleteChat(chat.id)}
-                        >
-                          <Trash2Icon className="size-4" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </SidebarMenuItem>
-                ))
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter>
-        <div className="flex items-center gap-2 px-1 py-1">
+    <SideNav
+      footer={
+        <div className="flex items-center gap-2 px-2 py-1">
           <UserButton />
-          <span className="text-muted-foreground text-xs">Account</span>
+          <Text color="secondary" size="xsm">
+            Account
+          </Text>
         </div>
-      </SidebarFooter>
-    </Sidebar>
+      }
+      header={<SideNavHeading heading={AGENT_NAME} headingHref="/" />}
+      topContent={
+        <Button
+          href="/"
+          icon={<PlusIcon className="size-4" />}
+          label="New chat"
+          onClick={closeMobileNav}
+        />
+      }
+    >
+      {decks.length > 0 ? (
+        <SideNavSection title="Decks">
+          {decks.map((deck) => (
+            <SideNavItem
+              endContent={<Badge label={String(deck.chatCount)} variant="neutral" />}
+              href={`/d/${deck.id}`}
+              icon={<ColorDots colors={deck.colors} />}
+              isSelected={deck.id === currentDeckId}
+              key={deck.id}
+              label={deck.name}
+              onClick={closeMobileNav}
+            />
+          ))}
+        </SideNavSection>
+      ) : null}
+
+      <SideNavSection title={decks.length > 0 ? "General" : "Recent"}>
+        {general.length === 0 ? (
+          <div className="px-2 py-1">
+            <Text color="secondary" size="xsm">
+              {decks.length > 0 ? "No general chats." : "No conversations yet."}
+            </Text>
+          </div>
+        ) : (
+          general.map((chat) => (
+            <div className="flex items-center gap-0.5" key={chat.id}>
+              <div className="min-w-0 flex-1">
+                <SideNavItem
+                  href={`/c/${chat.id}`}
+                  isSelected={chat.id === currentChatId}
+                  label={chat.title || "Untitled"}
+                  onClick={closeMobileNav}
+                />
+              </div>
+              <MoreMenu
+                items={[
+                  {
+                    label: "Delete",
+                    icon: <Trash2Icon className="size-4" />,
+                    onClick: () => deleteChat(chat.id),
+                  },
+                ]}
+                label="Chat options"
+                size="sm"
+              />
+            </div>
+          ))
+        )}
+      </SideNavSection>
+    </SideNav>
   );
 }

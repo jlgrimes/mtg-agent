@@ -13,6 +13,8 @@
     "typecheck": "tsgo --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@astryxdesign/core": "^0.1.6",
+    "@astryxdesign/theme-neutral": "^0.1.6",
     "@clerk/backend": "^3.8.0",
     "@clerk/nextjs": "^7.5.5",
     "@radix-ui/react-use-controllable-state": "1.2.2",
@@ -47,6 +49,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@astryxdesign/cli": "^0.1.6",
     "@types/node": "24.x",
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
