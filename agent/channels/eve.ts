@@ -15,8 +15,17 @@ function clerkAuth(): AuthFn<Request> {
     if (!secretKey) return null; // not configured -> skip (request gets 401)
 
     // Optional but recommended: restrict to your own origins (azp check).
-    const authorizedParties = process.env.CLERK_AUTHORIZED_PARTIES
+    // When configured, also allow this deployment's own Vercel URLs so the
+    // check doesn't reject preview deployments, whose origin is generated
+    // per-branch/per-deploy and can't be listed ahead of time.
+    const configuredParties = process.env.CLERK_AUTHORIZED_PARTIES
       ? process.env.CLERK_AUTHORIZED_PARTIES.split(",").map((s) => s.trim()).filter(Boolean)
+      : undefined;
+    const ownOrigins = [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL]
+      .filter((h): h is string => !!h)
+      .map((host) => `https://${host}`);
+    const authorizedParties = configuredParties
+      ? [...configuredParties, ...ownOrigins]
       : undefined;
 
     try {
