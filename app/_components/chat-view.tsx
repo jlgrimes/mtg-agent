@@ -17,6 +17,7 @@ import {
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
 import { Shimmer } from "@/components/ai-elements/shimmer";
+import { AGENT_MODEL, AGENT_MODEL_LABEL } from "@/lib/model";
 import { cn } from "@/lib/utils";
 import { AgentMessage } from "./agent-message";
 import { type DeckSummary, DeckPicker } from "./deck-picker";
@@ -263,6 +264,12 @@ export function ChatView({
             <PromptInputTextarea placeholder={placeholder} />
             <PromptInputSubmit onStop={agent.stop} status={agent.status} />
           </PromptInput>
+          <div className="mt-1.5 flex items-center justify-end gap-1 px-1 text-[11px] text-muted-foreground/70">
+            <span aria-hidden>✦</span>
+            <span title={`Messages are handled by ${AGENT_MODEL} via the Vercel AI Gateway`}>
+              {AGENT_MODEL_LABEL} · <span className="font-mono">{AGENT_MODEL}</span>
+            </span>
+          </div>
         </div>
 
         {isEmpty ? (

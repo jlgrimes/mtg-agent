@@ -1,8 +1,10 @@
 import { defineAgent } from "eve";
+import { AGENT_MODEL } from "../lib/model.js";
 
 export default defineAgent({
-  // Locked in after a bake-off: Haiku 4.5 is the accuracy/speed sweet spot.
-  // Cheaper/faster models (flash-lite, nemotron) hallucinated subtle rules
-  // interactions. Bump to anthropic/claude-sonnet-4.6 for a max-accuracy tier.
-  model: "anthropic/claude-haiku-4.5",
+  // Kimi K3 (Moonshot AI): open-weight, 1M-token context, thinking always on.
+  // Previous pick was anthropic/claude-haiku-4.5 after a bake-off — cheaper
+  // models (flash-lite, nemotron) hallucinated subtle rules interactions, so
+  // if K3 regresses on rules accuracy, that's the fallback.
+  model: AGENT_MODEL,
 });
