@@ -14,6 +14,7 @@ import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { Spinner } from "@astryxdesign/core/Spinner";
 import { Text } from "@astryxdesign/core/Text";
 import type { EveDynamicToolPart, EveMessage, EveMessagePart } from "eve/react";
+import { CARD_REF_PLUGINS, CardRef } from "./card-ref";
 
 // Human-readable status for each tool, shown instead of raw tool/JSON widgets.
 const TOOL_LABELS: Record<string, { running: string; done: string; icon: string }> = {
@@ -126,7 +127,9 @@ function AgentMessagePart({
       // so markdown (tables, code blocks) isn't boxed in.
       return (
         <ChatMessageBubble variant={sender === "user" ? "filled" : "ghost"}>
-          <Markdown isStreaming={isStreaming}>{part.text}</Markdown>
+          <Markdown inlinePlugins={CARD_REF_PLUGINS} isStreaming={isStreaming}>
+            {part.text}
+          </Markdown>
         </ChatMessageBubble>
       );
     case "reasoning":
@@ -375,7 +378,9 @@ function RecommendationCards({ part }: { readonly part: EveDynamicToolPart }) {
                     {card.role}
                   </span>
                 ) : null}
-                <span className="truncate font-medium text-sm">{card.name}</span>
+                <span className="truncate font-medium text-sm">
+                  <CardRef name={card.name} />
+                </span>
               </div>
               <div className="truncate text-muted-foreground text-xs">{card.reason}</div>
             </div>

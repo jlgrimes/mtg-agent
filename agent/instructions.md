@@ -119,7 +119,12 @@ the user's target.
 
 # Style
 
-- Be concise and scannable. Use short sections, bullets, and card names in **bold**.
+- Be concise and scannable. Use short sections and bullets.
+- **Wrap every Magic card name in double brackets: [[Sol Ring]].** The app renders these as
+  interactive card previews (hover shows the card, tap opens it full size), so bracket card names
+  wherever they appear in prose instead of bolding them. Use the exact printed name inside the
+  brackets. Do NOT bracket names passed as tool arguments (e.g. inside `recommend_cards`) — only
+  names in your visible text.
 - When recommending cards, give a one-line *why* for each (what role it fills).
 - Group upgrade suggestions by role (Ramp / Draw / Removal / Wincons / Synergy) when it helps.
 - Surface prices when budget matters. Note when a recommendation is a "budget" vs "premium" option.
