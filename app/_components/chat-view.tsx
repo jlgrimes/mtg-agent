@@ -65,12 +65,22 @@ interface UiMessage {
 }
 
 
-// Error bodies can be whole HTML error pages (e.g. a 404 for the agent
-// routes). Show something readable instead of dumping markup into the banner.
+// Error bodies can be whole HTML error pages (e.g. a Vercel function-crash
+// page). Surface the platform error code + request id instead of dumping
+// markup into the banner — those two values are what debugging needs.
 function friendlyError(error: Error): string {
   const message = error.message.trim();
   if (message.startsWith("<") || message.toLowerCase().includes("<!doctype")) {
-    return "The agent service didn’t respond (its routes returned an error page). Try again in a minute — if it persists, check the deployment.";
+    // Vercel error codes look like FUNCTION_INVOCATION_FAILED / NOT_FOUND;
+    // request ids look like iad1::abcde-1234567890123-0123456789ab.
+    const code = message.match(/\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/)?.[0];
+    const requestId = message.match(/\b[a-z]{3}\d?:{2}[\w:-]+\b/)?.[0];
+    const detail = [code && `code ${code}`, requestId && `id ${requestId}`]
+      .filter(Boolean)
+      .join(", ");
+    return detail
+      ? `The agent service returned an error page (${detail}).`
+      : "The agent service didn’t respond (its routes returned an error page). Try again in a minute — if it persists, check the deployment.";
   }
   return message.length > 300 ? `${message.slice(0, 300)}…` : message;
 }
