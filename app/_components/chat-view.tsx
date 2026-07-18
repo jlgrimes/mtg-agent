@@ -13,6 +13,7 @@ import { Spinner } from "@astryxdesign/core/Spinner";
 import { Text } from "@astryxdesign/core/Text";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { useAuth } from "@clerk/nextjs";
+import { EVE_HOST } from "@/lib/eve-host";
 import { type EveMessage, useEveAgent } from "eve/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -127,8 +128,8 @@ export function ChatView({
 
   const agent = useEveAgent({
     // Production talks to the standalone agent deployment; local dev keeps
-    // the same-origin withEve proxy (env unset).
-    host: process.env.NEXT_PUBLIC_EVE_HOST,
+    // the same-origin withEve proxy (EVE_HOST is "" there).
+    host: EVE_HOST || undefined,
     initialSession,
     // Clerk loads asynchronously after hydration; a send fired before it's
     // ready would go out with no token and 401. Poll briefly for the token

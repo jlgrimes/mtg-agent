@@ -3,8 +3,8 @@
 import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 
-const BUILD = "debug-5"; // bump when re-deploying so the page proves it's fresh
-const HOST = process.env.NEXT_PUBLIC_EVE_HOST ?? "";
+const BUILD = "debug-6"; // bump when re-deploying so the page proves it's fresh
+import { EVE_HOST as HOST } from "@/lib/eve-host";
 
 // Self-serve diagnostics: runs the exact authenticated agent flow the chat
 // uses (Clerk token -> POST /eve/v1/session -> event stream) and prints every

@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {};
 //
 // Local dev keeps withEve: it boots the eve dev server next to `next dev`
 // and proxies /eve/v1/* same-origin.
-const config = process.env.NEXT_PUBLIC_EVE_HOST ? nextConfig : withEve(nextConfig);
+// On Vercel (or with an explicit host override) skip withEve entirely: the
+// web project must not co-deploy the agent service. Locally, withEve boots
+// the eve dev server and proxies same-origin.
+const config =
+  process.env.VERCEL || process.env.NEXT_PUBLIC_EVE_HOST ? nextConfig : withEve(nextConfig);
 
 export default config;
