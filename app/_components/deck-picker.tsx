@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@astryxdesign/core/Button";
+import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { Spinner } from "@astryxdesign/core/Spinner";
 import { Text } from "@astryxdesign/core/Text";
 import { TextInput } from "@astryxdesign/core/TextInput";
@@ -231,7 +232,13 @@ export function DeckPicker({ onPick }: { readonly onPick: (deck: DeckSummary) =>
       </div>
 
       {loadingDecks ? (
-        <Spinner label="Loading decks…" size="sm" />
+        <div className="grid max-h-[19rem] w-full grid-cols-2 gap-3 p-0.5 sm:grid-cols-3">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div className="aspect-[16/11]" key={i}>
+              <Skeleton height="100%" radius={3} width="100%" />
+            </div>
+          ))}
+        </div>
       ) : error ? (
         <p className="text-destructive text-xs">{error}</p>
       ) : decks.length === 0 ? (

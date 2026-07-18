@@ -7,6 +7,7 @@ import {
   ChatComposerDrawer,
   ChatLayout,
   ChatMessage,
+  ChatMessageBubble,
   ChatMessageList,
 } from "@astryxdesign/core/Chat";
 import { Spinner } from "@astryxdesign/core/Spinner";
@@ -275,7 +276,9 @@ export function ChatView({
               ))}
               {agent.status === "submitted" ? (
                 <ChatMessage sender="assistant">
-                  <Spinner label="Thinking…" size="sm" />
+                  <ChatMessageBubble variant="ghost">
+                    <Spinner label="Thinking…" size="sm" />
+                  </ChatMessageBubble>
                 </ChatMessage>
               ) : null}
             </ChatMessageList>

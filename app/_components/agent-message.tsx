@@ -10,6 +10,7 @@ import {
 } from "@astryxdesign/core/Chat";
 import { Collapsible } from "@astryxdesign/core/Collapsible";
 import { Markdown } from "@astryxdesign/core/Markdown";
+import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { Spinner } from "@astryxdesign/core/Spinner";
 import { Text } from "@astryxdesign/core/Text";
 import type { EveDynamicToolPart, EveMessage, EveMessagePart } from "eve/react";
@@ -31,6 +32,37 @@ export type AgentInputResponse = {
   readonly text?: string;
 };
 
+// Plain status tools (lookups) get grouped into one ChatToolCalls block;
+// HITL requests and recommendation cards render standalone.
+function isStatusTool(part: EveDynamicToolPart): boolean {
+  return !part.toolMetadata?.eve?.inputRequest && part.toolName !== "recommend_cards";
+}
+
+type RenderItem =
+  | { readonly kind: "tools"; readonly parts: EveDynamicToolPart[]; readonly key: string }
+  | { readonly kind: "part"; readonly part: EveMessagePart; readonly key: string; readonly index: number };
+
+// Consecutive status-tool parts merge into one group (step-start markers in
+// between don't break a run — the agent often looks several things up back
+// to back across steps).
+function groupParts(parts: readonly EveMessagePart[]): RenderItem[] {
+  const items: RenderItem[] = [];
+  parts.forEach((part, index) => {
+    if (part.type === "step-start") return;
+    if (part.type === "dynamic-tool" && isStatusTool(part)) {
+      const last = items[items.length - 1];
+      if (last?.kind === "tools") {
+        last.parts.push(part);
+        return;
+      }
+      items.push({ kind: "tools", parts: [part], key: part.toolCallId });
+      return;
+    }
+    items.push({ kind: "part", part, key: partKey(part, index), index });
+  });
+  return items;
+}
+
 export function AgentMessage({
   canRespond,
   isStreaming,
@@ -50,18 +82,25 @@ export function AgentMessage({
 
   return (
     <ChatMessage sender={sender}>
-      {message.parts.map((part, index) => (
-        <AgentMessagePart
-          canRespond={canRespond}
-          isStreaming={
-            isStreaming && sender === "assistant" && part.type === "text" && index === lastTextIndex
-          }
-          key={partKey(part, index)}
-          onInputResponses={onInputResponses}
-          part={part}
-          sender={sender}
-        />
-      ))}
+      {groupParts(message.parts).map((item) =>
+        item.kind === "tools" ? (
+          <ToolCallGroup key={item.key} parts={item.parts} />
+        ) : (
+          <AgentMessagePart
+            canRespond={canRespond}
+            isStreaming={
+              isStreaming &&
+              sender === "assistant" &&
+              item.part.type === "text" &&
+              item.index === lastTextIndex
+            }
+            key={item.key}
+            onInputResponses={onInputResponses}
+            part={item.part}
+            sender={sender}
+          />
+        ),
+      )}
     </ChatMessage>
   );
 }
@@ -92,7 +131,17 @@ function AgentMessagePart({
       );
     case "reasoning":
       return (
-        <Collapsible trigger={part.state === "streaming" ? "Thinking…" : "Thought process"}>
+        <Collapsible
+          trigger={
+            part.state === "streaming" ? (
+              <span className="flex items-center gap-2">
+                <Spinner size="sm" /> Thinking…
+              </span>
+            ) : (
+              "Thought process"
+            )
+          }
+        >
           <Text as="div" color="secondary" size="sm">
             <Markdown isStreaming={part.state === "streaming"}>{part.text}</Markdown>
           </Text>
@@ -109,33 +158,83 @@ function AgentMessagePart({
           />
         );
       }
+      // Grouped status tools are handled by ToolCallGroup; only
+      // recommend_cards reaches here.
       if (part.toolName === "recommend_cards") {
         return <RecommendationCards part={part} />;
       }
-      return <ToolStatus part={part} />;
+      return null;
   }
 }
 
-// Compact, human-readable status line for a tool call (replaces raw JSON widgets).
-function ToolStatus({ part }: { readonly part: EveDynamicToolPart }) {
-  const meta = TOOL_LABELS[part.toolName];
-  const running = part.state === "input-available" || part.state === "input-streaming";
-  const errored = part.state === "output-error" || part.state === "output-denied";
+// What the tool was pointed at, pulled from its arguments (commander name,
+// search query, deck URL, …) so the activity log reads like a story.
+function toolTarget(part: EveDynamicToolPart): string | undefined {
+  const input = part.input;
+  if (!input || typeof input !== "object") return undefined;
+  const args = input as Record<string, unknown>;
+  if (typeof args.decklist === "string") return "pasted decklist";
+  for (const key of ["commander", "card", "name", "query", "urlOrId"]) {
+    const value = args[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.length > 48 ? `${value.slice(0, 48)}…` : value;
+    }
+  }
+  return undefined;
+}
 
-  // recommend_cards renders its own cards once complete.
-  if (!(running || errored) && !meta?.done) return null;
+// One-line result summary shown inline after the label once a call completes.
+function toolSummary(part: EveDynamicToolPart): string | undefined {
+  if (part.state !== "output-available") return undefined;
+  const out = part.output as Record<string, any> | null | undefined;
+  if (!out || typeof out !== "object") return undefined;
+  switch (part.toolName) {
+    case "edhrec_commander":
+      return typeof out.decksAnalyzed === "number"
+        ? `${out.decksAnalyzed.toLocaleString()} decks analyzed`
+        : undefined;
+    case "edhrec_card":
+      return Array.isArray(out.sections) ? `${out.sections.length} synergy sections` : undefined;
+    case "scryfall_search":
+      return typeof out.total === "number" ? `${out.total.toLocaleString()} matches` : undefined;
+    case "scryfall_card":
+      return typeof out.name === "string" ? out.name : undefined;
+    case "analyze_decklist": {
+      const stats = out.stats;
+      return stats && typeof stats.totalCards === "number"
+        ? `${stats.totalCards} cards · ${stats.lands} lands · avg CMC ${stats.avgCmcNonland}`
+        : undefined;
+    }
+    case "archidekt_import":
+      return typeof out.totalCards === "number" ? `${out.totalCards} cards imported` : undefined;
+    default:
+      return undefined;
+  }
+}
 
-  const label = running ? (meta?.running ?? part.toolName) : (meta?.done ?? part.toolName);
+// A run of consecutive lookups rendered as one activity block: single calls
+// show inline, larger runs collapse into a summary with per-call status.
+function ToolCallGroup({ parts }: { readonly parts: readonly EveDynamicToolPart[] }) {
   return (
     <ChatToolCalls
-      calls={[
-        {
+      calls={parts.map((part) => {
+        const meta = TOOL_LABELS[part.toolName];
+        const running = part.state === "input-available" || part.state === "input-streaming";
+        const errored = part.state === "output-error" || part.state === "output-denied";
+        const summary = toolSummary(part);
+        return {
           key: part.toolCallId,
-          name: label,
-          status: errored ? "error" : running ? "running" : "complete",
-          errorMessage: errored ? "Couldn’t complete" : undefined,
-        },
-      ]}
+          name: running ? (meta?.running ?? part.toolName) : (meta?.done ?? part.toolName),
+          target: toolTarget(part),
+          status: errored ? ("error" as const) : running ? ("running" as const) : ("complete" as const),
+          errorMessage: errored ? (part.errorText ?? "Couldn’t complete") : undefined,
+          stats: summary ? (
+            <Text color="secondary" size="xsm">
+              {summary}
+            </Text>
+          ) : undefined,
+        };
+      })}
     />
   );
 }
@@ -218,9 +317,25 @@ function RecommendationCards({ part }: { readonly part: EveDynamicToolPart }) {
   const data = part.output as { intro?: string | null; cards?: RecommendedCard[] } | undefined;
 
   if (!data?.cards) {
+    // Skeleton card rows while the recommendations are being assembled, so
+    // the block "develops" in place instead of appearing all at once.
     return (
-      <div className="my-1">
+      <div className="my-1 flex flex-col gap-2">
         <Spinner label="Finding the best cards…" size="sm" />
+        <Card padding={0}>
+          {[0, 1, 2].map((i) => (
+            <div
+              className="flex items-center gap-3 border-border border-t px-3 py-2.5 first:border-t-0"
+              key={i}
+            >
+              <Skeleton height={40} radius={1} width={56} />
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <Skeleton height={12} width="40%" />
+                <Skeleton height={10} width="70%" />
+              </div>
+            </div>
+          ))}
+        </Card>
       </div>
     );
   }
