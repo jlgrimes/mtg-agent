@@ -1,0 +1,6 @@
+# Copied in from ../agent by the Vercel buildCommand — never commit the copy.
+/agent
+node_modules
+.vercel
+.eve
+.output
