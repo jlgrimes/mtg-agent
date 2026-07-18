@@ -127,7 +127,19 @@ export function ChatView({
 
   const agent = useEveAgent({
     initialSession,
-    auth: { bearer: async () => (await getToken()) ?? "" },
+    // Clerk loads asynchronously after hydration; a send fired before it's
+    // ready would go out with no token and 401. Poll briefly for the token
+    // instead of immediately giving up.
+    auth: {
+      bearer: async () => {
+        for (let attempt = 0; attempt < 40; attempt++) {
+          const token = await getToken();
+          if (token) return token;
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+        return "";
+      },
+    },
     prepareSend: (input) => {
       const deck = activeDeckRef.current;
       if (!deck) return input;

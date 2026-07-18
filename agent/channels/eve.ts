@@ -1,18 +1,36 @@
 import { eveChannel } from "eve/channels/eve";
-import { type AuthFn, extractBearerToken, localDev } from "eve/channels/auth";
+import {
+  type AuthFn,
+  extractBearerToken,
+  localDev,
+  UnauthenticatedError,
+} from "eve/channels/auth";
 import { verifyToken } from "@clerk/backend";
 
 // Verifies the Clerk session token the browser attaches as a Bearer header.
 // The web app gets the token from Clerk's useAuth().getToken() and passes it to
 // useEveAgent({ auth: { bearer } }), so every agent request carries the caller's
-// identity. Anyone without a valid Clerk session falls through to a 401.
+// identity.
+//
+// This is the LAST entry in the auth walk, so instead of silently returning
+// null (which yields a generic 401), it throws UnauthenticatedError with the
+// specific rejection reason — the chat UI surfaces that message directly,
+// making auth failures diagnosable from the error banner alone.
 function clerkAuth(): AuthFn<Request> {
   return async (request) => {
     const token = extractBearerToken(request.headers.get("authorization"));
-    if (!token) return null;
+    if (!token) {
+      throw new UnauthenticatedError({
+        message: "No sign-in token on the request. If you just loaded the page, wait a moment and retry.",
+      });
+    }
 
     const secretKey = process.env.CLERK_SECRET_KEY;
-    if (!secretKey) return null; // not configured -> skip (request gets 401)
+    if (!secretKey) {
+      throw new UnauthenticatedError({
+        message: "Server is missing CLERK_SECRET_KEY for this environment.",
+      });
+    }
 
     // Optional but recommended: restrict to your own origins (azp check).
     // When configured, also allow this deployment's own Vercel URLs so the
@@ -28,29 +46,39 @@ function clerkAuth(): AuthFn<Request> {
       ? [...configuredParties, ...ownOrigins]
       : undefined;
 
+    let result: {
+      sub?: string;
+      email?: unknown;
+      data?: { sub?: string; email?: unknown };
+      errors?: unknown;
+    };
     try {
       // @clerk/backend 3.x returns the JWT payload directly (and throws on
       // invalid tokens); newer versions return { data, errors }. Handle both.
-      const result = (await verifyToken(token, { secretKey, authorizedParties })) as {
-        sub?: string;
-        email?: unknown;
-        data?: { sub?: string; email?: unknown };
-        errors?: unknown;
-      };
-      if (result.errors) return null;
-      const claims = (result.data ?? result) as { sub?: string; email?: unknown };
-      if (!claims?.sub) return null;
-      const attributes: Record<string, string> = {};
-      if (typeof claims.email === "string") attributes.email = claims.email;
-      return {
-        authenticator: "clerk",
-        principalId: claims.sub, // Clerk user id (e.g. "user_2ab...")
-        principalType: "user",
-        attributes,
-      };
-    } catch {
-      return null; // invalid token / network failure -> request gets 401
+      result = (await verifyToken(token, { secretKey, authorizedParties })) as typeof result;
+    } catch (e) {
+      const reason = e instanceof Error ? e.message.slice(0, 160) : "unknown error";
+      throw new UnauthenticatedError({ message: `Clerk rejected the sign-in token: ${reason}` });
     }
+    if (result.errors) {
+      throw new UnauthenticatedError({
+        message: `Clerk rejected the sign-in token: ${JSON.stringify(result.errors).slice(0, 160)}`,
+      });
+    }
+    const claims = (result.data ?? result) as { sub?: string; email?: unknown };
+    if (!claims?.sub) {
+      throw new UnauthenticatedError({
+        message: "Clerk token verified but carried no user id (sub claim).",
+      });
+    }
+    const attributes: Record<string, string> = {};
+    if (typeof claims.email === "string") attributes.email = claims.email;
+    return {
+      authenticator: "clerk",
+      principalId: claims.sub, // Clerk user id (e.g. "user_2ab...")
+      principalType: "user",
+      attributes,
+    };
   };
 }
 
