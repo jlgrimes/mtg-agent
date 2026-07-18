@@ -3,7 +3,7 @@
 import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 
-const BUILD = "debug-3"; // bump when re-deploying so the page proves it's fresh
+const BUILD = "debug-4"; // bump when re-deploying so the page proves it's fresh
 
 // Self-serve diagnostics: runs the exact authenticated agent flow the chat
 // uses (Clerk token -> POST /eve/v1/session -> event stream) and prints every
@@ -35,13 +35,20 @@ export default function DebugPage() {
       const info = await fetch("/eve/v1/info", { headers });
       log(`GET /eve/v1/info -> ${info.status} :: ${(await info.text()).slice(0, 160)}`);
 
-      // Control probe: a stream request for a session that can't exist. eve
-      // answers these with JSON ("Session not found.") — if we get HTML here,
-      // service 404s fall through to the Next app at the routing layer.
-      const fake = await fetch("/eve/v1/session/wrun_FAKE_DIAGNOSTIC_ID/stream", { headers });
-      const fakeBody = (await fake.text()).slice(0, 140).replace(/\s+/g, " ");
-      log(`GET …/wrun_FAKE_DIAGNOSTIC_ID/stream -> ${fake.status} (${fake.headers.get("content-type") ?? "?"})`);
-      log(`  body: ${fakeBody}`);
+      // Control probes that discriminate routing theories:
+      // - unknown 2-segment path: JSON => host regex catch-all reaches the
+      //   service; HTML => only exact literal paths are routed.
+      // - fake-session stream: JSON ("Session not found.") => parameterized
+      //   routes reach the service; HTML => they're dropped at routing.
+      for (const probe of [
+        "/eve/v1/definitely-not-a-route",
+        "/eve/v1/session/wrun_FAKE_DIAGNOSTIC_ID/stream",
+      ]) {
+        const r = await fetch(probe, { headers });
+        const body = (await r.text()).slice(0, 120).replace(/\s+/g, " ");
+        log(`GET ${probe} -> ${r.status} (${r.headers.get("content-type") ?? "?"})`);
+        log(`  body: ${body}`);
+      }
 
       const post = await fetch("/eve/v1/session", {
         method: "POST",

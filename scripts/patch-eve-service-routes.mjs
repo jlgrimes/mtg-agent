@@ -1,46 +1,87 @@
-// Post-build patch for the generated eve service Build Output.
+// Post-build patch for the generated eve Build Output route configs.
 //
-// On deployed Vercel routing, the service config's parameterized routes
-// (e.g. "/eve/v1/session/(?<sessionId>[^/]+)/stream") fail to match, so
-// stream/continue requests fall through to the Next app's 404 while the
-// literal routes (/health, /info, /session) work. The service's Nitro
-// server has its own internal router that handles every eve path, so a
-// trailing catch-all into the server function is always safe and makes
-// route matching independent of Vercel's regex handling.
+// Deployed Vercel routing serves the three LITERAL eve routes (/health,
+// /info, /session) but drops every parameterized one (session stream/
+// continue), 404ing them into the Next app. The generated patterns use
+// PCRE-style named groups ("(?<sessionId>[^/]+)"), which RE2 — used by
+// newer Vercel routing — cannot compile, so those routes die silently.
+//
+// Fix: append dialect-neutral equivalents (plain groups, no named
+// captures) plus a namespace-scoped catch-all to both the service config
+// and the host config. Additive only — generated routes stay untouched.
 //
 // Runs as part of the eve service buildCommand (see next.config.ts); a
-// missing output config (plain local builds) is a no-op.
+// missing config (plain local builds) is a no-op.
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-const outputDir = process.env.EVE_INTERNAL_BUILD_OUTPUT_DIRECTORY;
-if (!outputDir) {
-  console.log("[patch-eve-service-routes] EVE_INTERNAL_BUILD_OUTPUT_DIRECTORY unset — skipping.");
-  process.exit(0);
-}
-const configPath = join(outputDir, "config.json");
-if (!existsSync(configPath)) {
-  console.log(`[patch-eve-service-routes] no config at ${configPath} — skipping.`);
-  process.exit(0);
-}
-
-const config = JSON.parse(readFileSync(configPath, "utf8"));
-const routes = Array.isArray(config.routes) ? config.routes : [];
-
-// Find the server function destination from the existing generated routes.
-const serverDest = routes.find((r) => typeof r?.dest === "string")?.dest;
-if (!serverDest) {
-  console.log("[patch-eve-service-routes] no dest routes found — skipping.");
-  process.exit(0);
-}
-
-const catchAll = { src: "/(.*)", dest: serverDest };
-const alreadyPatched = routes.some((r) => r?.src === catchAll.src && r?.dest === catchAll.dest);
-if (!alreadyPatched) {
-  routes.push(catchAll);
+function patchServiceConfig(outputDir) {
+  const configPath = join(outputDir, "config.json");
+  if (!existsSync(configPath)) {
+    console.log(`[patch-eve-routes] no service config at ${configPath} — skipping.`);
+    return;
+  }
+  const config = JSON.parse(readFileSync(configPath, "utf8"));
+  const routes = Array.isArray(config.routes) ? config.routes : [];
+  const serverDest = routes.find((r) => typeof r?.dest === "string")?.dest;
+  if (!serverDest) {
+    console.log("[patch-eve-routes] no dest routes in service config — skipping.");
+    return;
+  }
+  const additions = [
+    { src: "/eve/v1/session/([^/]+)/stream", dest: serverDest },
+    { src: "/eve/v1/session/([^/]+)/cancel", dest: serverDest },
+    { src: "/eve/v1/session/([^/]+)", dest: serverDest },
+    { src: "/eve/v1/connections/([^/]+)/callback/([^/]+)", dest: serverDest },
+    { src: "/eve/v1/callback/([^/]+)", dest: serverDest },
+    { src: "/eve/v1/(.*)", dest: serverDest },
+  ];
+  let added = 0;
+  for (const route of additions) {
+    if (!routes.some((r) => r?.src === route.src && r?.dest === route.dest)) {
+      routes.push(route);
+      added++;
+    }
+  }
   config.routes = routes;
   writeFileSync(configPath, JSON.stringify(config, null, 2));
-  console.log(`[patch-eve-service-routes] appended catch-all → ${serverDest} in ${configPath}`);
-} else {
-  console.log("[patch-eve-service-routes] catch-all already present.");
+  console.log(`[patch-eve-routes] service config: +${added} routes (${configPath})`);
 }
+
+function patchHostConfig(hostDir) {
+  const configPath = join(hostDir, "config.json");
+  if (!existsSync(configPath)) {
+    console.log(`[patch-eve-routes] no host config at ${configPath} — skipping.`);
+    return;
+  }
+  const config = JSON.parse(readFileSync(configPath, "utf8"));
+  const routes = Array.isArray(config.routes) ? config.routes : [];
+  const serviceRoute = routes.find((r) => r?.destination?.type === "service");
+  if (!serviceRoute) {
+    console.log("[patch-eve-routes] no service destination in host config — skipping.");
+    return;
+  }
+  const destination = serviceRoute.destination;
+  const additions = [
+    { src: "^/eve/v1/session/([^/]+)/stream$", destination },
+    { src: "^/eve/v1/session/([^/]+)/cancel$", destination },
+    { src: "^/eve/v1/session/([^/]+)$", destination },
+  ];
+  let added = 0;
+  for (const route of additions) {
+    if (!routes.some((r) => r?.src === route.src)) {
+      routes.push(route);
+      added++;
+    }
+  }
+  config.routes = routes;
+  writeFileSync(configPath, JSON.stringify(config, null, 2));
+  console.log(`[patch-eve-routes] host config: +${added} routes (${configPath})`);
+}
+
+const serviceDir = process.env.EVE_INTERNAL_BUILD_OUTPUT_DIRECTORY;
+const hostDir = process.env.EVE_INTERNAL_HOST_BUILD_OUTPUT_DIRECTORY;
+if (serviceDir) patchServiceConfig(serviceDir);
+else console.log("[patch-eve-routes] EVE_INTERNAL_BUILD_OUTPUT_DIRECTORY unset — skipping service.");
+if (hostDir) patchHostConfig(hostDir);
+else console.log("[patch-eve-routes] EVE_INTERNAL_HOST_BUILD_OUTPUT_DIRECTORY unset — skipping host.");
