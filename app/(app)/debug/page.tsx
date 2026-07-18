@@ -3,7 +3,8 @@
 import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 
-const BUILD = "debug-4"; // bump when re-deploying so the page proves it's fresh
+const BUILD = "debug-5"; // bump when re-deploying so the page proves it's fresh
+const HOST = process.env.NEXT_PUBLIC_EVE_HOST ?? "";
 
 // Self-serve diagnostics: runs the exact authenticated agent flow the chat
 // uses (Clerk token -> POST /eve/v1/session -> event stream) and prints every
@@ -21,6 +22,7 @@ export default function DebugPage() {
     try {
       log(`build: ${BUILD} · ${new Date().toISOString()}`);
       log(`origin: ${window.location.origin}`);
+      log(`agent host: ${HOST || "(same origin)"}`);
 
       const token = await getToken();
       log(`clerk token: ${token ? `present (${token.slice(0, 12)}…)` : "MISSING"}`);
@@ -29,10 +31,10 @@ export default function DebugPage() {
         ...(token ? { authorization: `Bearer ${token}` } : {}),
       };
 
-      const health = await fetch("/eve/v1/health");
+      const health = await fetch(`${HOST}/eve/v1/health`);
       log(`GET /eve/v1/health -> ${health.status} :: ${(await health.text()).slice(0, 120)}`);
 
-      const info = await fetch("/eve/v1/info", { headers });
+      const info = await fetch(`${HOST}/eve/v1/info`, { headers });
       log(`GET /eve/v1/info -> ${info.status} :: ${(await info.text()).slice(0, 160)}`);
 
       // Control probes that discriminate routing theories:
@@ -41,8 +43,8 @@ export default function DebugPage() {
       // - fake-session stream: JSON ("Session not found.") => parameterized
       //   routes reach the service; HTML => they're dropped at routing.
       for (const probe of [
-        "/eve/v1/definitely-not-a-route",
-        "/eve/v1/session/wrun_FAKE_DIAGNOSTIC_ID/stream",
+        `${HOST}/eve/v1/definitely-not-a-route`,
+        `${HOST}/eve/v1/session/wrun_FAKE_DIAGNOSTIC_ID/stream`,
       ]) {
         const r = await fetch(probe, { headers });
         const body = (await r.text()).slice(0, 120).replace(/\s+/g, " ");
@@ -50,7 +52,7 @@ export default function DebugPage() {
         log(`  body: ${body}`);
       }
 
-      const post = await fetch("/eve/v1/session", {
+      const post = await fetch(`${HOST}/eve/v1/session`, {
         method: "POST",
         headers,
         body: JSON.stringify({ message: "Diagnostic ping. Reply with the single word: pong" }),
@@ -71,7 +73,7 @@ export default function DebugPage() {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 30_000);
       try {
-        const stream = await fetch(`/eve/v1/session/${sessionId}/stream`, {
+        const stream = await fetch(`${HOST}/eve/v1/session/${sessionId}/stream`, {
           headers,
           signal: controller.signal,
         });

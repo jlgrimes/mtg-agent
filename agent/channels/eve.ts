@@ -83,6 +83,11 @@ function clerkAuth(): AuthFn<Request> {
 }
 
 export default eveChannel({
+  // The agent deploys as its own Vercel project; the web app calls it
+  // cross-origin from the browser. Permissive CORS is fine here because
+  // every session route still requires a verified Clerk bearer token —
+  // CORS isn't the auth boundary, clerkAuth() is.
+  cors: true,
   auth: [
     // Open on localhost for `eve dev` and the REPL; ignored in production.
     localDev(),
