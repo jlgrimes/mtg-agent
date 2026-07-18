@@ -14,6 +14,7 @@ import { Spinner } from "@astryxdesign/core/Spinner";
 import { Text } from "@astryxdesign/core/Text";
 import { TextArea } from "@astryxdesign/core/TextArea";
 import { useAuth } from "@clerk/nextjs";
+import { AGENT_MODEL } from "@/agent/model";
 import { EVE_HOST } from "@/lib/eve-host";
 import { type EveMessage, useEveAgent } from "eve/react";
 import { useRouter } from "next/navigation";
@@ -64,6 +65,21 @@ export interface PersistPayload {
 interface UiMessage {
   role: string;
   parts: { type: string; text?: string }[];
+}
+
+// What we persist to Redis: the eve message plus our own annotations. `model`
+// records which model wrote an assistant message, stamped at save time.
+type StoredMessage = EveMessage & { model?: string };
+
+// Stamp the current model onto assistant messages that don't have one yet.
+// Messages reloaded from history keep their original stamp, so a later model
+// switch doesn't rewrite what older replies were generated with.
+function stampModel(messages: EveMessage[]): StoredMessage[] {
+  return messages.map((m) => {
+    const stored = m as StoredMessage;
+    if (m.role !== "assistant" || stored.model) return stored;
+    return { ...m, model: AGENT_MODEL };
+  });
 }
 
 
@@ -196,7 +212,7 @@ export function ChatView({
       },
       title,
       deck: activeDeckRef.current ?? undefined,
-      messages: messages as unknown[],
+      messages: stampModel(messages) as unknown[],
     });
   }, [agent.status]);
 
@@ -277,7 +293,14 @@ export function ChatView({
               {agent.status === "submitted" ? (
                 <ChatMessage sender="assistant">
                   <ChatMessageBubble variant="ghost">
-                    <Spinner label="Thinking…" size="sm" />
+                    {/* Spinner's `label` prop stacks below the spinner; keep
+                        the indicator on one line with an inline row instead. */}
+                    <span className="flex items-center gap-2">
+                      <Spinner aria-label="Thinking" size="sm" />
+                      <Text color="secondary" size="sm">
+                        Thinking…
+                      </Text>
+                    </span>
                   </ChatMessageBubble>
                 </ChatMessage>
               ) : null}
