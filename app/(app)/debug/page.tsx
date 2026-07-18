@@ -3,7 +3,7 @@
 import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 
-const BUILD = "debug-2"; // bump when re-deploying so the page proves it's fresh
+const BUILD = "debug-3"; // bump when re-deploying so the page proves it's fresh
 
 // Self-serve diagnostics: runs the exact authenticated agent flow the chat
 // uses (Clerk token -> POST /eve/v1/session -> event stream) and prints every
